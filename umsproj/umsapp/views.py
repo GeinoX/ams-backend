@@ -13,6 +13,8 @@ from rest_framework import status, permissions
 from django.utils import timezone
 from .serializers import CourseStudentSerializer
 from .utils import notify_session
+from django.contrib.auth import logout
+
 
 
 # Create your views here.
@@ -62,6 +64,21 @@ class StudentInfoView(APIView):
                 "image": f"{ngrok_url}{user.profile_image.url}" if user.profile_image else None
             }
         }, status=status.HTTP_200_OK)
+
+
+
+
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.can_logout:
+            return Response({"message": "Logged out successfully."}, status=200)
+        else:
+            return Response({"message": "You are not allowed to logout."}, status=403)
 
 
 

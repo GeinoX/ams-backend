@@ -28,7 +28,7 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-
+"""
 from umsapp.models import Student
 
 s = Student.objects.get(matricule="67jdjhdhd")
@@ -37,3 +37,4 @@ s = Student.objects.get(matricule="67jdjhdhd")
 user = s.user 
 
 print(user.profile_image.path)
+"""

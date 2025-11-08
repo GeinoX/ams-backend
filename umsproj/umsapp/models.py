@@ -57,6 +57,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     phone = models.BigIntegerField(unique=True)
     profile_image = models.ImageField(upload_to="Profiles/", null=True)
 
+    can_logout = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_teacher = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -70,7 +71,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.name
 
 
-from django.utils.html import format_html
+# from django.utils.html import format_html
 
 class Student(models.Model):
     matricule = models.CharField(max_length=12, primary_key=True)

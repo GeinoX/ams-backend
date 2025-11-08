@@ -1,6 +1,6 @@
 # urls.py
 from django.urls import path
-from .views import StudentRegisterView, CourseView, CoursefilterView, TimetableView, EnrollView, MyTokenObtainPairView, EnrollFilterView, StartSessionView, StopSessionView, AttendanceCheckInView, TeacherRegisterView, StudentAttendanceView, TeacherCoursesView, GetCourseStudentsView, ReportDetectionView, ActiveSessionView, StudentInfoView, StudentAttView, PendingAttendanceView, ApprovePendingAttendanceView
+from .views import StudentRegisterView, CourseView, CoursefilterView, TimetableView, EnrollView, MyTokenObtainPairView, EnrollFilterView, StartSessionView, StopSessionView, AttendanceCheckInView, TeacherRegisterView, StudentAttendanceView, TeacherCoursesView, GetCourseStudentsView, ReportDetectionView, ActiveSessionView, StudentInfoView, StudentAttView, PendingAttendanceView, ApprovePendingAttendanceView, LogoutView
 
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -29,5 +29,6 @@ urlpatterns = [
     path('attendance/check_in/', AttendanceCheckInView.as_view(), name='attendance-check-in'),
     path('attendance/pending/<uuid:session_id>/', PendingAttendanceView.as_view(), name='pending-attendance'),
     path('attendance/approve/', ApprovePendingAttendanceView.as_view(), name='approve-attendance'),
+    path('logout/', LogoutView.as_view(), name='logout'),
 
 ]
