@@ -2,8 +2,8 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import StudentRegisterSerializer, CourseSerializer, TimetableSerializer, EnrollmentSerializer, MyTokenObtainPairSerializer, AttendanceCheckInSerializer, SessionSerializer, TeacherRegisterSerializer
-from .models import Course, Timetable, Enrollment, Attendance, Session, Student, PendingAttendance
+from .serializers import StudentRegisterSerializer, CourseSerializer, TimetableSerializer, EnrollmentSerializer, MyTokenObtainPairSerializer, AttendanceCheckInSerializer, SessionSerializer, TeacherRegisterSerializer, SemesterSerializer
+from .models import Course, Timetable, Enrollment, Attendance, Session, Student, PendingAttendance, Semester
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import CourseAssignment
@@ -14,8 +14,6 @@ from django.utils import timezone
 from .serializers import CourseStudentSerializer
 from .utils import notify_session
 from django.contrib.auth import logout
-
-
 
 # Create your views here.
 
@@ -65,10 +63,6 @@ class StudentInfoView(APIView):
             }
         }, status=status.HTTP_200_OK)
 
-
-
-
-from rest_framework_simplejwt.tokens import RefreshToken
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
@@ -130,6 +124,24 @@ class EnrollView(APIView):
             serializer.save() 
             return Response({"message": "Enrollment successful"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GetCurrentSemesterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            latest_semester = Semester.objects.get(status="Current")
+            serializer = SemesterSerializer(latest_semester)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Semester.DoesNotExist:
+            return Response(
+                {"error": "No current semester found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+
 
 
 ## View courses enrolled to in the attendance page and course page

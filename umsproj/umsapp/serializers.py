@@ -337,3 +337,8 @@ class CourseStudentSerializer(serializers.Serializer):
     last_attended = serializers.DateTimeField(allow_null=True)
 
 
+
+class SemesterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Semester
+        fields = '__all__'

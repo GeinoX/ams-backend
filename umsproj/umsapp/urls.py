@@ -1,6 +1,6 @@
 # urls.py
 from django.urls import path
-from .views import StudentRegisterView, CourseView, CoursefilterView, TimetableView, EnrollView, MyTokenObtainPairView, EnrollFilterView, StartSessionView, StopSessionView, AttendanceCheckInView, TeacherRegisterView, StudentAttendanceView, TeacherCoursesView, GetCourseStudentsView, ReportDetectionView, ActiveSessionView, StudentInfoView, StudentAttView, PendingAttendanceView, ApprovePendingAttendanceView, LogoutView
+from .views import StudentRegisterView, CourseView, CoursefilterView, TimetableView, EnrollView, MyTokenObtainPairView, EnrollFilterView, StartSessionView, StopSessionView, AttendanceCheckInView, TeacherRegisterView, StudentAttendanceView, TeacherCoursesView, GetCourseStudentsView, ReportDetectionView, ActiveSessionView, StudentInfoView, StudentAttView, PendingAttendanceView, ApprovePendingAttendanceView, LogoutView, GetCurrentSemesterView
 
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -30,5 +30,6 @@ urlpatterns = [
     path('attendance/pending/<uuid:session_id>/', PendingAttendanceView.as_view(), name='pending-attendance'),
     path('attendance/approve/', ApprovePendingAttendanceView.as_view(), name='approve-attendance'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('currentsemester/', GetCurrentSemesterView.as_view(), name='current_serializer'),
 
 ]
