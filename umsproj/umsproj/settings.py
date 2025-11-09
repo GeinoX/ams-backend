@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-ui!j78!@%tyf7okaecr+lx60527hy^&m39z_c(a&z3iw*^wr0w
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['e3269a9de6dc.ngrok-free.app','2b05f256ac02.ngrok-free.app', '127.0.0.1', '721316e5d013.ngrok-free.app']
+ALLOWED_HOSTS = ['d5e65c1f4222.ngrok-free.app','2b05f256ac02.ngrok-free.app', '127.0.0.1', '721316e5d013.ngrok-free.app']
 
 
 # Application definition
@@ -59,8 +59,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=100),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=5),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=200),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=35),
     "ROTATE_REFRESH_TOKENS": True,                
     "BLACKLIST_AFTER_ROTATION": True,        
     "ALGORITHM": "HS256",

@@ -3,10 +3,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import StudentRegisterSerializer, CourseSerializer, TimetableSerializer, EnrollmentSerializer, MyTokenObtainPairSerializer, AttendanceCheckInSerializer, SessionSerializer, TeacherRegisterSerializer, SemesterSerializer
-from .models import Course, Timetable, Enrollment, Attendance, Session, Student, PendingAttendance, Semester
+from .models import Course, Timetable, Enrollment, Attendance, Session, Student, PendingAttendance, Semester, Teacher, CourseAssignment
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import CourseAssignment
 from .serializers import CourseAssignmentSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework import status, permissions
@@ -64,6 +63,27 @@ class StudentInfoView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class TeacherInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        ngrok_url = "https://e708f1bfee58.ngrok-free.app"  # Replace with your actual media URL if needed
+
+        try:
+            teacher = Teacher.objects.get(user=user)
+        except Teacher.DoesNotExist:
+            return Response({'message': 'Teacher profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'data': {
+                'name': user.name,
+                'department': teacher.department if hasattr(teacher, 'department') else None,
+                "image": f"{ngrok_url}{user.profile_image.url}" if user.profile_image else None
+            }
+        }, status=status.HTTP_200_OK)
+
+
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -95,10 +115,54 @@ class CoursefilterView(APIView):
 
 ## Handles the time timatable, enables didplay of the timetable in timetable page
 class TimetableView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        timetable = Timetable.objects.all()
+        user = request.user
+
+        try:
+            # Get the Student object linked to this user
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({"error": "Student profile not found"}, status=404)
+
+        # Get all courses the student is enrolled in
+        enrolled_courses = Enrollment.objects.filter(student=student).values_list('course', flat=True)
+
+        # Filter timetable for those courses
+        timetable = Timetable.objects.filter(course__in=enrolled_courses)
+
+        serializer = TimetableSerializer(timetable, many=True)
+        return Response(serializer.data)
+    
+class TeacherTimetableView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            # Get the Teacher object linked to this user
+            teacher = Teacher.objects.get(user=user)
+        except Teacher.DoesNotExist:
+            return Response({"error": "Teacher profile not found"}, status=404)
+
+        # Optional query parameters
+        semester = request.query_params.get('semester')  # e.g., "Fall", "Summer"
+        year = request.query_params.get('year')          # e.g., "2025"
+
+        # Get courses assigned to this teacher, optionally filtering by semester/year
+        assignments = CourseAssignment.objects.filter(teacher=teacher)
+        if semester:
+            assignments = assignments.filter(semester=semester)
+        if year:
+            assignments = assignments.filter(year=year)
+
+        assigned_courses = assignments.values_list('course', flat=True)
+
+        # Filter timetable for those courses
+        timetable = Timetable.objects.filter(course__in=assigned_courses)
+
         serializer = TimetableSerializer(timetable, many=True)
         return Response(serializer.data)
 
@@ -149,9 +213,21 @@ class EnrollFilterView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request): #level
-        student_profile = request.user.student_profile  
+        student_profile = request.user.student_profile
 
-        enrollments = Enrollment.objects.filter(student=student_profile,) #course__level=level
+        period = request.query_params.get('period')
+        year = request.query_params.get('year')
+
+
+        print(period)
+        print(year)
+
+        try:
+            semester = Semester.objects.get(period=period, year=year, status="Current")
+        except Semester.DoesNotExist:
+                return Response({"error": "Semester not found or is not current"}, status=403)
+        
+        enrollments = Enrollment.objects.filter(student=student_profile, semester=semester) #course__level=level
 
         courses = [enrollment.course for enrollment in enrollments]
 
