@@ -174,6 +174,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+import dj_database_url
 
 load_dotenv()
 
@@ -181,12 +182,8 @@ load_dotenv()
 # BASE SETTINGS
 # ---------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-very-secure-secret-key-change-this')
-
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-
-# ⚙️ Railway or production domain
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'sugmps-backend-production.up.railway.app').split(',')
 
 # ---------------------------
@@ -194,17 +191,14 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'sugmps-backend-production.up.ra
 # ---------------------------
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_SSL_REDIRECT = False
+SECURE_SSL_REDIRECT = True  # Force HTTPS
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# ⚠️ For Railway HTTPS environment
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-# ✅ Fix CSRF verification failure
 CSRF_TRUSTED_ORIGINS = [
     "https://sugmps-backend-production.up.railway.app",
 ]
@@ -219,21 +213,17 @@ CORS_ALLOW_CREDENTIALS = True
 # DJANGO APPS
 # ---------------------------
 INSTALLED_APPS = [
-    'daphne',  # For ASGI / WebSockets
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
     'channels',
     'corsheaders',
-
-    # Local app
     'umsapp',
 ]
 
@@ -243,7 +233,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # serve static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -253,7 +243,7 @@ MIDDLEWARE = [
 ]
 
 # ---------------------------
-# REST FRAMEWORK
+# REST FRAMEWORK & JWT
 # ---------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -264,9 +254,6 @@ REST_FRAMEWORK = {
     ),
 }
 
-# ---------------------------
-# SIMPLE JWT CONFIG
-# ---------------------------
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=200),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=35),
@@ -298,17 +285,14 @@ TEMPLATES = [
 ]
 
 # ---------------------------
-# DATABASE CONFIG
+# DATABASE CONFIG (RAILWAY)
 # ---------------------------
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'sugpmsdb'),
-        'USER': os.environ.get('DB_USER', 'LeslieCheghe'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'kkdjkdjgdknf'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5433'),
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
 
 # ---------------------------
