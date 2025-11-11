@@ -177,43 +177,72 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ---------------------------
+# BASE SETTINGS
+# ---------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-very-secure-secret-key-change-this')
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+# ⚙️ Railway or production domain
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'sugmps-backend-production.up.railway.app').split(',')
+
+# ---------------------------
+# SECURITY SETTINGS
+# ---------------------------
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+
+# ⚠️ For Railway HTTPS environment
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+# ✅ Fix CSRF verification failure
+CSRF_TRUSTED_ORIGINS = [
+    "https://sugmps-backend-production.up.railway.app",
+]
+
+# ---------------------------
+# CORS SETTINGS
+# ---------------------------
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
+# ---------------------------
+# DJANGO APPS
+# ---------------------------
 INSTALLED_APPS = [
-    'daphne',
+    'daphne',  # For ASGI / WebSockets
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
     'channels',
     'corsheaders',
-    'umsapp'
+
+    # Local app
+    'umsapp',
 ]
 
+# ---------------------------
+# MIDDLEWARE
+# ---------------------------
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serve static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -222,6 +251,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# ---------------------------
+# REST FRAMEWORK
+# ---------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -231,6 +263,9 @@ REST_FRAMEWORK = {
     ),
 }
 
+# ---------------------------
+# SIMPLE JWT CONFIG
+# ---------------------------
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=200),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=35),
@@ -241,6 +276,9 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+# ---------------------------
+# TEMPLATES
+# ---------------------------
 ROOT_URLCONF = 'umsproj.urls'
 
 TEMPLATES = [
@@ -258,29 +296,41 @@ TEMPLATES = [
     },
 ]
 
+# ---------------------------
+# DATABASE CONFIG
+# ---------------------------
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'sugpmsdb'),
         'USER': os.environ.get('DB_USER', 'LeslieCheghe'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', '#Iamcheghe123'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'kkdjkdjgdknf'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5433'),
     }
 }
 
+# ---------------------------
+# PASSWORD VALIDATION
+# ---------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# ---------------------------
+# INTERNATIONALIZATION
+# ---------------------------
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# ---------------------------
+# STATIC & MEDIA
+# ---------------------------
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -288,9 +338,15 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# ---------------------------
+# CUSTOM USER MODEL
+# ---------------------------
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'umsapp.CustomUser'
 
+# ---------------------------
+# ASGI & CHANNELS
+# ---------------------------
 ASGI_APPLICATION = "umsproj.asgi.application"
 
 CHANNEL_LAYERS = {
