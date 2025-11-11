@@ -201,7 +201,7 @@ if DB_LIVE.lower() == "false":
     SECURE_PROXY_SSL_HEADER = None
 
     ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
-    CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000', 'd5e65c1f4222.ngrok-free.app']
+    CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000', 'https://d5e65c1f4222.ngrok-free.app']
 else:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -212,10 +212,12 @@ else:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    DEBUG = True
 
-    ALLOWED_HOSTS = ['sugmps-backend-production.up.railway.app']
+    ALLOWED_HOSTS = ['sugmps-backend-production.up.railway.app', '127.0.0.1']
     CSRF_TRUSTED_ORIGINS = [
         "https://sugmps-backend-production.up.railway.app",
+        "https://127.0.0.1:8000"
     ]
 
 # ---------------------------
@@ -265,9 +267,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ),
 }
+
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=200),
