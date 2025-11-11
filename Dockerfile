@@ -1,7 +1,7 @@
 # Base image
 FROM python:3.11-slim
 
-# Working directory
+# Set working directory
 WORKDIR /app
 
 # Install system dependencies
@@ -14,12 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=umsproj.umsproj.settings
+
 # Collect static files
 RUN python manage.py collectstatic --noinput
-
-# Environment variables defaults
-ENV PYTHONUNBUFFERED=1 \
-    DJANGO_SETTINGS_MODULE=umsproj.settings
 
 # Expose port
 EXPOSE 8000
