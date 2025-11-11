@@ -15,15 +15,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Set environment variables BEFORE running any Django commands
+# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=umsproj.settings
 
-# Collect static files for production
+# Collect static files
 RUN python manage.py collectstatic --noinput
 
 # Expose port 8000
 EXPOSE 8000
 
-# Run Gunicorn with Uvicorn for ASGI
-CMD ["gunicorn", "umsproj.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+# Run Uvicorn for ASGI
+CMD ["uvicorn", "umsproj.asgi:application", "--host", "0.0.0.0", "--port", "8000"]
