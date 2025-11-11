@@ -194,7 +194,8 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'sugmps-backend-production.up.ra
 # ---------------------------
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ⚠️ For Railway HTTPS environment
 SESSION_COOKIE_SECURE = True
