@@ -26,4 +26,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Run Uvicorn for ASGI
-CMD ["uvicorn", "umsproj.asgi:application", "--host", "0.0.0.0", "--port", $PORT]
+CMD ["sh", "-c", "uvicorn umsproj.asgi:application --host 0.0.0.0 --port $PORT"]
