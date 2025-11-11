@@ -10,9 +10,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='customuser',
-            name='can_logout',
-            field=models.BooleanField(default=False),
-        ),
+        
     ]
