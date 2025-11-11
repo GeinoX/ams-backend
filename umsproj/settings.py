@@ -184,24 +184,39 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-very-secure-secret-key-change-this')
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'sugmps-backend-production.up.railway.app').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,sugmps-backend-production.up.railway.app').split(',')
+DB_LIVE = os.getenv("DB_LIVE", "False")  # always a string
+#print(DB_LIVE)
 
 # ---------------------------
 # SECURITY SETTINGS
 # ---------------------------
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_SSL_REDIRECT = True  # Force HTTPS
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+if DB_LIVE.lower() == "false":
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+    SECURE_PROXY_SSL_HEADER = None
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://sugmps-backend-production.up.railway.app",
-]
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+    CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000', 'd5e65c1f4222.ngrok-free.app']
+else:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_SSL_REDIRECT = True  # Force HTTPS
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+
+    CSRF_TRUSTED_ORIGINS = [
+        "https://sugmps-backend-production.up.railway.app",
+    ]
 
 # ---------------------------
 # CORS SETTINGS
@@ -284,16 +299,26 @@ TEMPLATES = [
     },
 ]
 
-# ---------------------------
-# DATABASE CONFIG (RAILWAY)
-# ---------------------------
-DATABASES = {
+# -----------------------------------------------------
+# DATABASE CONFIG (PRODUCTION(RAILWAY) and DEVELOPMENT)
+# -----------------------------------------------------
+
+if DB_LIVE.lower() == "false":
+    DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+else:
+    DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
         conn_max_age=600,
         ssl_require=True
     )
 }
+
 
 # ---------------------------
 # PASSWORD VALIDATION
@@ -339,3 +364,4 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
+
