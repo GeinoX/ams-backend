@@ -265,7 +265,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'sugpmsdb'),
         'USER': os.environ.get('DB_USER', 'LeslieCheghe'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'jjjhjhjhjh'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '#Iamcheghe123'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5433'),
     }
