@@ -1,7 +1,7 @@
 # Base image
 FROM python:3.11-slim
 
-# Set working directory
+# Working directory
 WORKDIR /app
 
 # Install system dependencies
@@ -16,7 +16,7 @@ COPY . .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
-    DJANGO_SETTINGS_MODULE=umsproj.umsproj.settings
+    DJANGO_SETTINGS_MODULE=umsproj.settings
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
