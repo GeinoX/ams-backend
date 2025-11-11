@@ -213,7 +213,7 @@ else:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-
+    ALLOWED_HOSTS = ['sugmps-backend-production.up.railway.app']
     CSRF_TRUSTED_ORIGINS = [
         "https://sugmps-backend-production.up.railway.app",
     ]
