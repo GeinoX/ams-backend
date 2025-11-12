@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model, authenticate
 from .models import Student, Course, Enrollment, Timetable, Session, Attendance, Teacher, Semester
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 import uuid
+from django.conf import settings
 
 User = get_user_model()
 
@@ -109,9 +110,18 @@ serializer.fields
 class StudentRegisterSerializer(BaseRegisterSerializer):
     matricule = serializers.CharField(write_only=True)
     school_email = serializers.EmailField(write_only=True)
+    profile_image_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta(BaseRegisterSerializer.Meta):
-        fields = BaseRegisterSerializer.Meta.fields + ['matricule', 'school_email']
+        fields = BaseRegisterSerializer.Meta.fields + ['matricule', 'school_email', 'profile_image_url']
+
+    def get_profile_image_url(self, obj):
+        """
+        Return the full Cloudinary URL for the profile image.
+        """
+        if obj.profile_image:
+            return f"https://res.cloudinary.com/{settings.CLOUDINARY_STORAGE['CLOUD_NAME']}/{obj.profile_image}"
+        return None
 
     def validate(self, data):
         if Student.objects.filter(matricule=data['matricule']).exists():
@@ -128,11 +138,23 @@ class StudentRegisterSerializer(BaseRegisterSerializer):
         return user
 
 
+# ---------------------------
+# Teacher Registration
+# ---------------------------
 class TeacherRegisterSerializer(BaseRegisterSerializer):
     employee_id = serializers.CharField(write_only=True)
+    profile_image_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta(BaseRegisterSerializer.Meta):
-        fields = BaseRegisterSerializer.Meta.fields + ['employee_id']
+        fields = BaseRegisterSerializer.Meta.fields + ['employee_id', 'profile_image_url']
+
+    def get_profile_image_url(self, obj):
+        """
+        Return the full Cloudinary URL for the profile image.
+        """
+        if obj.profile_image:
+            return f"https://res.cloudinary.com/{settings.CLOUDINARY_STORAGE['CLOUD_NAME']}/{obj.profile_image}"
+        return None
 
     def validate(self, data):
         if Teacher.objects.filter(employee_id=data['employee_id']).exists():
@@ -144,7 +166,7 @@ class TeacherRegisterSerializer(BaseRegisterSerializer):
         user = super().create(validated_data)
         Teacher.objects.create(user=user, employee_id=employee_id)
         return user
-
+    
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
