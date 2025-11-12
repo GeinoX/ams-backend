@@ -23,23 +23,24 @@ class MyTokenObtainPairView(TokenObtainPairView):
 ## Enables student to register
 class StudentRegisterView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
         if serializer.is_valid():
-            student = serializer.save()
-            return Response({"message": "Student registerd successfully."}, status=201)
+            serializer.save()
+            return Response({"message": "Student registered successfully."}, status=201)
         return Response(serializer.errors, status=400)
-    
-## Enables teacher to register
+
+
 class TeacherRegisterView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = TeacherRegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Teacher registered successfully."}, status=201)
         return Response(serializer.errors, status=400)
-    
 
 
 class StudentInfoView(APIView):
