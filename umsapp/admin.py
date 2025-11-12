@@ -42,9 +42,9 @@ class TimetableAdmin(admin.ModelAdmin):
 
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
-    list_display = ("session", "student", "timestamp")
-    search_fields = ("session", "student")
-    list_filter =  ("session", "student")
+    list_display = ("session", "student", "semester", "timestamp")
+    search_fields = ("session", "student", "semester")
+    list_filter =  ("session", "student", "semester")
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):

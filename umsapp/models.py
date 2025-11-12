@@ -242,6 +242,7 @@ class Session(models.Model):
 class Attendance(models.Model):
     session = models.ForeignKey(Session, on_delete=models.CASCADE)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

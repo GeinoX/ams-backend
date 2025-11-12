@@ -121,19 +121,29 @@ class TimetableView(APIView):
         user = request.user
 
         try:
-            # Get the Student object linked to this user
+            # Get the Student linked to this user
             student = Student.objects.get(user=user)
         except Student.DoesNotExist:
             return Response({"error": "Student profile not found"}, status=404)
 
-        # Get all courses the student is enrolled in
-        enrolled_courses = Enrollment.objects.filter(student=student).values_list('course', flat=True)
+        # Get the current semester
+        try:
+            current_semester = Semester.objects.get(status="Current")
+        except Semester.DoesNotExist:
+            return Response({"error": "No current semester found"}, status=404)
 
-        # Filter timetable for those courses
+        # Get enrollments only for that semester
+        enrolled_courses = Enrollment.objects.filter(
+            student=student,
+            semester=current_semester
+        ).values_list("course", flat=True)
+
+        # Get timetable for those courses
         timetable = Timetable.objects.filter(course__in=enrolled_courses)
 
         serializer = TimetableSerializer(timetable, many=True)
         return Response(serializer.data)
+
     
 class TeacherTimetableView(APIView):
     permission_classes = [IsAuthenticated]
@@ -338,14 +348,29 @@ class StudentAttendanceView(APIView):
     def get(self, request, course_id):
         student = request.user.student_profile
 
-        # Match sessions that contain the course_id
-        all_sessions = Session.objects.filter(course__course_id__icontains=course_id).order_by('start_time')
-        print("All sessions:", list(all_sessions))  # debug
+        # Get current semester
+        current_semester = Semester.objects.filter(status="Current").first()
+        if not current_semester:
+            return Response({"error": "No current semester found"}, status=404)
 
-        student_attendance = Attendance.objects.filter(student=student, session__in=all_sessions)
-        print("Student attendance:", list(student_attendance))  # debug
+        # Courses student is enrolled in this semester
+        enrolled_courses = Enrollment.objects.filter(
+            student=student,
+            semester=current_semester
+        ).values_list('course', flat=True)
 
-        attended_ids = set(a.session.session_id for a in student_attendance)
+        # Sessions for these courses
+        all_sessions = Session.objects.filter(
+            course__in=enrolled_courses,
+            course__course_id__icontains=course_id
+        ).order_by('start_time')
+
+        student_attendance = Attendance.objects.filter(
+            student=student,
+            session__in=all_sessions
+        )
+
+        attended_ids = {a.session.session_id for a in student_attendance}
 
         result = []
         for i, session in enumerate(all_sessions, start=1):
@@ -357,6 +382,7 @@ class StudentAttendanceView(APIView):
             })
 
         return Response(result)
+
 
 ## Enables teachers to get the courses assigned to them
 class TeacherCoursesView(APIView):
