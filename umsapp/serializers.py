@@ -106,23 +106,6 @@ serializer.fields
 # ----------------------------
 # Student Registration Serializer
 # ----------------------------
-from rest_framework import serializers
-from .models import CustomUser, Student, Teacher
-import cloudinary.uploader
-
-class BaseRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = CustomUser
-        fields = ['email', 'name', 'password', 'profile_image', 'user_type']
-
-    def create(self, validated_data):
-        password = validated_data.pop('password')
-        user = CustomUser.objects.create_user(password=password, **validated_data)
-        return user
-
-
 class StudentRegisterSerializer(BaseRegisterSerializer):
     matricule = serializers.CharField(write_only=True)
     school_email = serializers.EmailField(write_only=True)
@@ -140,7 +123,6 @@ class StudentRegisterSerializer(BaseRegisterSerializer):
     def create(self, validated_data):
         matricule = validated_data.pop("matricule")
         school_email = validated_data.pop("school_email")
-        validated_data['user_type'] = 'student'
         user = super().create(validated_data)
         Student.objects.create(user=user, matricule=matricule, school_email=school_email)
         return user
@@ -159,10 +141,10 @@ class TeacherRegisterSerializer(BaseRegisterSerializer):
 
     def create(self, validated_data):
         employee_id = validated_data.pop("employee_id")
-        validated_data['user_type'] = 'teacher'
         user = super().create(validated_data)
         Teacher.objects.create(user=user, employee_id=employee_id)
         return user
+
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
