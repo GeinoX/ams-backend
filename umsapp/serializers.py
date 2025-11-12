@@ -107,76 +107,62 @@ serializer.fields
 # Student Registration Serializer
 # ----------------------------
 from rest_framework import serializers
-from rest_auth.registration.serializers import RegisterSerializer
 from .models import CustomUser, Student, Teacher
 import cloudinary.uploader
 
-class StudentRegisterSerializer(RegisterSerializer):
-    matricule = serializers.CharField(write_only=True)
-    school_email = serializers.EmailField(write_only=True)
-    profile_image = serializers.ImageField(required=False)  # optional profile image
+class BaseRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
 
     class Meta:
         model = CustomUser
-        fields = ['name', 'email', 'gender', 'phone', 'password', 'profile_image', 'matricule', 'school_email']
+        fields = ['email', 'name', 'password', 'profile_image', 'user_type']
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = CustomUser.objects.create_user(password=password, **validated_data)
+        return user
+
+
+class StudentRegisterSerializer(BaseRegisterSerializer):
+    matricule = serializers.CharField(write_only=True)
+    school_email = serializers.EmailField(write_only=True)
+
+    class Meta(BaseRegisterSerializer.Meta):
+        fields = BaseRegisterSerializer.Meta.fields + ['matricule', 'school_email']
 
     def validate(self, data):
         if Student.objects.filter(matricule=data['matricule']).exists():
-            raise serializers.ValidationError({"matricule": "Matricule already exists"})
+            raise serializers.ValidationError("Matricule already exists")
         if Student.objects.filter(school_email=data['school_email']).exists():
-            raise serializers.ValidationError({"school_email": "School email already exists"})
+            raise serializers.ValidationError("School email already exists")
         return data
 
     def create(self, validated_data):
-        profile_image_file = validated_data.pop('profile_image', None)
         matricule = validated_data.pop("matricule")
         school_email = validated_data.pop("school_email")
-
-        # Upload profile image to Cloudinary if provided
-        profile_image_url = None
-        if profile_image_file:
-            result = cloudinary.uploader.upload(profile_image_file, folder="profiles")
-            profile_image_url = result.get('secure_url')
-        
-        validated_data['profile_image'] = profile_image_url
-        validated_data['is_teacher'] = False  # mark as student
-        user = CustomUser.objects.create_user(**validated_data)
-
-        # Create related Student record
+        validated_data['user_type'] = 'student'
+        user = super().create(validated_data)
         Student.objects.create(user=user, matricule=matricule, school_email=school_email)
         return user
 
 
-class TeacherRegisterSerializer(RegisterSerializer):
+class TeacherRegisterSerializer(BaseRegisterSerializer):
     employee_id = serializers.CharField(write_only=True)
-    profile_image = serializers.ImageField(required=False)
 
-    class Meta:
-        model = CustomUser
-        fields = ['name', 'email', 'gender', 'phone', 'password', 'profile_image', 'employee_id']
+    class Meta(BaseRegisterSerializer.Meta):
+        fields = BaseRegisterSerializer.Meta.fields + ['employee_id']
 
     def validate(self, data):
         if Teacher.objects.filter(employee_id=data['employee_id']).exists():
-            raise serializers.ValidationError({"employee_id": "Employee already exists"})
+            raise serializers.ValidationError("Employee already exists")
         return data
 
     def create(self, validated_data):
-        profile_image_file = validated_data.pop('profile_image', None)
         employee_id = validated_data.pop("employee_id")
-
-        # Upload profile image to Cloudinary if provided
-        profile_image_url = None
-        if profile_image_file:
-            result = cloudinary.uploader.upload(profile_image_file, folder="profiles")
-            profile_image_url = result.get('secure_url')
-
-        validated_data['profile_image'] = profile_image_url
-        validated_data['is_teacher'] = True
-        user = CustomUser.objects.create_user(**validated_data)
-
+        validated_data['user_type'] = 'teacher'
+        user = super().create(validated_data)
         Teacher.objects.create(user=user, employee_id=employee_id)
         return user
-
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course

@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from cloudinary.models import CloudinaryField
 
 import uuid
 
@@ -55,7 +56,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(max_length=50, unique=True)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     phone = models.BigIntegerField(unique=True)
-    profile_image = models.TextField(blank=True, null=True) 
+    profile_image = CloudinaryField('image', blank=True, null=True)
 
     can_logout = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
