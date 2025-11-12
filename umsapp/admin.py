@@ -4,7 +4,7 @@ from .models import CustomUser, Student, Course, Enrollment, Timetable, Attendan
 # CustomUser admin
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ("email", "name", "gender", "phone", "can_logout", "is_staff", "is_teacher", "is_active")
+    list_display = ("email", "name", "gender", "phone", "profile_image", "can_logout", "is_staff", "is_teacher", "is_active")
     search_fields = ("email", "name", "phone")
     list_filter = ("is_teacher", "is_active", "gender")
     ordering = ("email",)
