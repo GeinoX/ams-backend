@@ -1,10 +1,19 @@
 from django.contrib import admin
 from .models import CustomUser, Student, Course, Enrollment, Timetable, Attendance, Session, Teacher, CourseAssignment, PendingAttendance, Semester
+from django.utils.html import format_html
 
 # CustomUser admin
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ("email", "name", "gender", "phone", "profile_image", "can_logout", "is_staff", "is_teacher", "is_active")
+    list_display = ("email", "name", "gender", "phone", "profile_image_tag", "can_logout", "is_staff", "is_teacher", "is_active")
+
+    def profile_image_tag(self, obj):
+        if obj.profile_image:
+            return format_html('<img src="{}" width="50" height="50" style="border-radius:50%;" />', obj.profile_image.url)
+        return "No Image"
+
+    profile_image_tag.short_description = "Profile Image"
+    
     search_fields = ("email", "name", "phone")
     list_filter = ("is_teacher", "is_active", "gender")
     ordering = ("email",)
