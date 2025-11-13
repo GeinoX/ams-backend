@@ -25,18 +25,34 @@ class StudentRegisterView(APIView):
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Student registered successfully"}, status=201)
+            user = serializer.save()  # Save the user + student
+            # Re-serialize the created user to include read-only fields like profile_image_url
+            response_data = StudentRegisterSerializer(user).data
+            return Response(
+                {
+                    "message": "Student registered successfully",
+                    "user": response_data
+                },
+                status=201
+            )
         return Response(serializer.errors, status=400)
-
 
 class TeacherRegisterView(APIView):
     def post(self, request):
         serializer = TeacherRegisterSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Teacher registered successfully"}, status=201)
+            user = serializer.save()  # Save teacher user
+            # Re-serialize to include read-only fields (like profile_image_url)
+            response_data = TeacherRegisterSerializer(user).data
+            return Response(
+                {
+                    "message": "Teacher registered successfully",
+                    "user": response_data
+                },
+                status=201
+            )
         return Response(serializer.errors, status=400)
+
 
 
 class StudentInfoView(APIView):
