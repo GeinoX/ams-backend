@@ -34,7 +34,7 @@ from .models import (
 # ==============================
 # Auth
 # ==============================
-class MyTokenObtainPairView(TokenObtainPairView):
+class MyTokenObtainPairView(TokenObtainPairView):            
     serializer_class = MyTokenObtainPairSerializer
 
 
