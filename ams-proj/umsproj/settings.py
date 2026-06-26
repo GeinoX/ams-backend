@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-"""
+
 import os
 from pathlib import Path
 
@@ -24,7 +24,7 @@ from datetime import timedelta
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ui!j78!@%tyf7okaecr+lx60527hy^&m39z_c(a&z3iw*^wr0w'
+SECRET_KEY = "LOL"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'channels',
-    'umsapp'
+    'auth_app',
+    
 ]
 
 REST_FRAMEWORK = {
@@ -53,7 +54,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication', 
     ),
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ),
 }
 
@@ -164,11 +165,12 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'umsapp.CustomUser'
-"""
+AUTH_USER_MODEL = 'auth_app.CustomUser'
+
 
 """
 Django settings for umsproj project (Production-ready for a mobile frontend).
+"""
 """
 import os
 import cloudinary
@@ -308,15 +310,7 @@ TEMPLATES = [
 # DATABASE CONFIG (PRODUCTION(RAILWAY) and DEVELOPMENT)
 # -----------------------------------------------------
 
-"""
-if DB_LIVE.lower() == "false":
-    DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-"""
+
 if DB_LIVE.lower() == "false":
     DATABASES = {
     'default': {
@@ -387,14 +381,7 @@ INSTALLED_APPS += [
     'cloudinary',
     'cloudinary_storage',
 ]
-"""
-# Cloudinary configuration
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
-}
-"""
+
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': 'dbtr0aowt',
@@ -410,3 +397,25 @@ cloudinary.config(
     secure=True,
 )
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+"""
+
+
+
+"""
+if DB_LIVE.lower() == "false":
+    DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+"""
+
+"""
+# Cloudinary configuration
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
+}
+"""

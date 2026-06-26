@@ -1,69 +1,114 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import *
+from django.db import transaction
+from .models import Student, Lecturer, Staff, Faculty
 
 User = get_user_model()
 
-class BaseRegisterSerializer(serializers.Serializer):
-    profile_image_url = serializers.ModelSerializer(read_only=True)
+
+class FacultySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Faculty
+        fields = ["id", "name"]
+
+
+class BaseRegisterSerializer(serializers.ModelSerializer):
+    """
+    Shared registration serializer for all user types.
+    Subclasses must implement `create()` to handle role-specific profile creation.
+    """
+
+    password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
+    profile_image_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
-        fields = ['first_name', 'last_name', 'school_email', 'email', 'gender', 'phone', 'faculty', 'password', 'profile_image', 'profile_image_url']
-    
+        model = User
+        fields = [
+            "first_name",
+            "last_name",
+            "school_email",
+            "email",
+            "gender",
+            "phone",
+            "faculty",
+            "password",
+            "profile_image",
+            "profile_image_url",
+        ]
+        extra_kwargs = {
+            "profile_image": {"write_only": True, "required": False},
+            "faculty": {"required": False},
+            "email": {"required": False},
+        }
 
-    def get_profile_image_url(self, obj):
+    def get_profile_image_url(self, obj: User) -> str | None:
         if obj.profile_image:
             return obj.profile_image.url
         return None
-    
-    def validate(self, attrs):
-        if User.objects.filter(school_email=attrs['school_email']).exists():
-            raise serializers.ValidationError({"school_email" : "School email already exists"})
-        if User.objects.filter(email=attrs['email']):
-            raise serializers.ValidationError({"email" : "Email already exists"})
-        
-    def create(self, validated_data):
-        password = validated_data.pop("password")
-        user = User.objects.create_user(**validated_data, password=password)
-        return user
-    
-class StudentRegisterSerializer(BaseRegisterSerializer):
 
-    class Meta:
+    def validate_school_email(self, value: str) -> str:
+        if User.objects.filter(school_email__iexact=value).exists():
+            raise serializers.ValidationError("A user with this school email already exists.")
+        return value.lower()
+
+    def validate_email(self, value: str) -> str:
+        if value and User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value.lower() if value else value
+
+    @transaction.atomic
+    def create(self, validated_data: dict) -> User:
+        password = validated_data.pop("password")
+        return User.objects.create_user(**validated_data, password=password)
+
+
+class StudentRegisterSerializer(BaseRegisterSerializer):
+    matricule = serializers.CharField(max_length=15)
+
+    class Meta(BaseRegisterSerializer.Meta):
         fields = BaseRegisterSerializer.Meta.fields + ["matricule"]
 
-    def validate(self, attrs):
-        if Student.objects.filter(matricule=attrs["matricule"]).exists():
-            return serializers.ValidationError({'matricule': 'User with this matricule already exists'})
-        
-    def create(self, validated_data):
+    def validate_matricule(self, value: str) -> str:
+        if Student.objects.filter(matricule=value).exists():
+            raise serializers.ValidationError("A student with this matricule already exists.")
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data: dict) -> User:
         matricule = validated_data.pop("matricule")
-        user = super().create(validated_data=validated_data)
+        user = super().create(validated_data)
         Student.objects.create(user=user, matricule=matricule)
         return user
 
-class LecturerRegisterSerializer(BaseRegisterSerializer):
 
-    class Meta:
+class LecturerRegisterSerializer(BaseRegisterSerializer):
+    employee_id = serializers.CharField(max_length=50)
+
+    class Meta(BaseRegisterSerializer.Meta):
         fields = BaseRegisterSerializer.Meta.fields + ["employee_id"]
 
-    def validate(self, attrs):
-        if Lecturer.objects.filter(employee_id=attrs["employee_id"]).exists():
-            return serializers.ValidationError({"employee_id" : "Employee with this id already exists"})
-        
-    def create(self, validated_data):
-        employee_id = validated_data.pop("employee_id")
-        user = super().create(validated_data=validated_data)
-        Lecturer.objects.create(employee_id=employee_id, user=user)
-        return user
-    
-class StaffRegisterSerializer(BaseRegisterSerializer):
+    def validate_employee_id(self, value: str) -> str:
+        if Lecturer.objects.filter(employee_id=value).exists():
+            raise serializers.ValidationError("A lecturer with this employee ID already exists.")
+        return value
 
-    class Meta:
+    @transaction.atomic
+    def create(self, validated_data: dict) -> User:
+        employee_id = validated_data.pop("employee_id")
+        user = super().create(validated_data)
+        Lecturer.objects.create(user=user, employee_id=employee_id)
+        return user
+
+
+class StaffRegisterSerializer(BaseRegisterSerializer):
+    position = serializers.CharField(max_length=100)
+
+    class Meta(BaseRegisterSerializer.Meta):
         fields = BaseRegisterSerializer.Meta.fields + ["position"]
 
-    def create(self, validated_data):
+    @transaction.atomic
+    def create(self, validated_data: dict) -> User:
         position = validated_data.pop("position")
-        user = super().create(validated_data=validated_data)
-        Staff.objects.create(position=position, user=user)
+        user = super().create(validated_data)
+        Staff.objects.create(user=user, position=position)
         return user
