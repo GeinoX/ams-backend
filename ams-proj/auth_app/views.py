@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .serializers import StudentRegisterSerializer, LecturerRegisterSerializer, StaffRegisterSerializer
+from rest_framework import status
 
 # Create your views here.
 
@@ -10,9 +11,10 @@ class StudentRegisterView(APIView):
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            user = serializer.save()
+            response_data = StudentRegisterSerializer(user).data
             return Response({"message": "Student registered successfully"}, status=201)
-        return Response(serializer.errors, status=400)
+        return Response(serializer.errors, status=status.HTTP_201_CREATED)
     
 class LecturerRegisterView(APIView):
 
