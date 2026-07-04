@@ -8,4 +8,13 @@ urlpatterns = [
     path("lecturer/register/", LecturerRegisterView.as_view(), name="Lecturer Register"),
     path("staff/register/", StaffRegisterView.as_view(), name="Lecturer Register"),
 ]
+"""
+attendance.save()
 
+notification = Notification.objects.create(...)
+
+PushService.send(notification)
+
+return Response({"success": True})
+
+"""

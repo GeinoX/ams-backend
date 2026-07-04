@@ -14,7 +14,7 @@ class StudentRegisterView(APIView):
             user = serializer.save()
             response_data = StudentRegisterSerializer(user).data
             return Response({"message": "Student registered successfully"}, status=201)
-        return Response(serializer.errors, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class LecturerRegisterView(APIView):
 
@@ -22,7 +22,7 @@ class LecturerRegisterView(APIView):
         serializer = LecturerRegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "Registration Successful"})
+            return Response({"message": "Registration Successful"}, status=201)
         return Response(serializer.errors, status=400)
 
 class StaffRegisterView(APIView):

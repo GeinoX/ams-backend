@@ -46,6 +46,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'channels',
     'auth_app',
+    'courses',
+    'class_sessions',
+    'attendance',
+    'core',
+    'notifications',
     
 ]
 
@@ -67,6 +72,35 @@ SIMPLE_JWT = {
     "SIGNING_KEY": SECRET_KEY,             
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+
+CELERY_BROKER_URL = (
+    "redis://127.0.0.1:6379/0"
+)
+
+CELERY_RESULT_BACKEND = (
+    "redis://127.0.0.1:6379/0"
+)
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+
+
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+)
+
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = "your_email@gmail.com"
+EMAIL_HOST_PASSWORD = "your_app_password"
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
