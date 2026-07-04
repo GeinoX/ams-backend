@@ -16,4 +16,4 @@ db.sqlite3
 .idea/
 
 # firebase
-firebase-service-account.json
+ams-proj/credentials/firebase-service-account.json
