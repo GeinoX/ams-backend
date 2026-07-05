@@ -1,4 +1,4 @@
-from models import Notification, DeviceToken
+from notifications.models import Notification, DeviceToken
 from firebase_admin import messaging
 
 

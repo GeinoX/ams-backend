@@ -23,7 +23,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     #path('umsapp/', include('umsapp.urls')),
     path('auth_app/', include('auth_app.urls')),
-    path('courses/', include('courses.urls'))
+    path('courses/', include('courses.urls')),
+    path('attendance/', include('attendance.urls')),
+    path('sessions/', include('class_sessions.urls')),
 ]
 
 

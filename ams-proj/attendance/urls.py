@@ -3,6 +3,6 @@ from .views import AttendanceCreateView, AttendanceLecturerInfoView, AttendanceS
 
 urlpatterns = [
     path('student/checkin/', AttendanceCreateView.as_view(), name="Attendance Checkin"),
-    path('student/info/', AttendanceStudentInfoView.as_view(), name="Attendance Student Info"),
+    path('student/info/<int:course_offering>/', AttendanceStudentInfoView.as_view(), name="Attendance Student Info"),
     path('lecturer/info/', AttendanceLecturerInfoView.as_view(), name="Attendance Lecturer Info")
 ] 

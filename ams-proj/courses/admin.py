@@ -1,7 +1,7 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from .models import Course, Semester, CourseOffering, CourseAssignment, CourseEnrollment
 
-# courses/admin.py
 
 # ------- Course -------
 @admin.register(Course)
@@ -16,11 +16,26 @@ class CourseAdmin(admin.ModelAdmin):
 # ------- Semester -------
 @admin.register(Semester)
 class SemesterAdmin(admin.ModelAdmin):
-    list_display = ["name", "start_date", "end_date", "is_active"]
+    list_display = ["name", "start_date", "end_date", "is_active_badge"]
     list_filter = ["is_active"]
     search_fields = ["name"]
     ordering = ["-start_date"]
-    readonly_fields = ["is_active"]
+
+    # ← removed readonly_fields = ["is_active"] so superuser can edit it
+    fields = ["name", "start_date", "end_date", "is_active"]
+
+    def is_active_badge(self, obj):
+        if obj.is_active:
+            return format_html(
+                '<span style="color: green; font-weight: bold;">● Active</span>'
+            )
+        return format_html('<span style="color: red;">● Inactive</span>')
+    is_active_badge.short_description = "Status"
+
+    def get_readonly_fields(self, request, obj=None):
+        if request.user.is_superuser:
+            return ["created_at"] if hasattr(obj, "created_at") else []  # ← superuser can edit is_active
+        return ["is_active"]  # ← non-superuser cannot edit is_active
 
 
 # ------- CourseOffering -------
@@ -40,18 +55,31 @@ class CourseEnrollmentInline(admin.TabularInline):
 
 @admin.register(CourseOffering)
 class CourseOfferingAdmin(admin.ModelAdmin):
-    list_display = ["course", "semester", "year", "created_at"]
+    list_display = ["id", "course", "semester", "year", "created_at"]  # ← added "id"
     list_filter = ["semester", "year", "course__level"]
-    search_fields = ["course__name", "semester__name"]
+    search_fields = ["id", "course__name", "semester__name"]  # ← added "id" to search
     ordering = ["-year", "course__name"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = ["id", "created_at", "updated_at"]  # ← added "id" as readonly
     inlines = [CourseAssignmentInline, CourseEnrollmentInline]
+
+    fieldsets = (
+        ("Course Offering Info", {
+            "fields": ("id", "course", "semester", "year")
+        }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
 
 
 # ------- CourseAssignment -------
 @admin.register(CourseAssignment)
 class CourseAssignmentAdmin(admin.ModelAdmin):
-    list_display = ["get_lecturer_name", "get_course_name", "get_semester", "get_year", "created_at"]
+    list_display = [
+        "get_lecturer_name", "get_course_name",
+        "get_semester", "get_year", "created_at"
+    ]
     list_filter = ["course_offering__semester", "course_offering__year"]
     search_fields = [
         "lecturer__user__first_name",
@@ -80,7 +108,10 @@ class CourseAssignmentAdmin(admin.ModelAdmin):
 # ------- CourseEnrollment -------
 @admin.register(CourseEnrollment)
 class CourseEnrollmentAdmin(admin.ModelAdmin):
-    list_display = ["get_student_name", "get_matricule", "get_course_name", "get_semester", "created_at"]
+    list_display = [
+        "get_student_name", "get_matricule",
+        "get_course_name", "get_semester", "created_at"
+    ]
     list_filter = ["course_offering__semester", "course_offering__year"]
     search_fields = [
         "student__matricule",
@@ -105,5 +136,3 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
     def get_semester(self, obj):
         return obj.course_offering.semester
     get_semester.short_description = "Semester"
-
-# Register your models here.

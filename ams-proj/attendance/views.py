@@ -17,34 +17,55 @@ enrollment = get_enrollments()
 # Create your views here.
 
 class AttendanceCreateView(APIView):
-
-    permission_classes = [IsAuthenticated, IsStudent]
+    permission_classes = [IsAuthenticated, IsStudent, IsEnrolled]
 
     def post(self, request):
         session = request.data.get("session")
+        added_student = request.data.get("added_student")
 
-        att_serializer = AttendanceCreateSerializer(data={"session": session})
-        pen_att_serializer = PendingAttendanceCreateSerializer(data=request.data)
+        att_serializer = AttendanceCreateSerializer(
+            data={"session": session},
+            context={"request": request}
+        )
 
-        if att_serializer.is_valid() and pen_att_serializer.is_valid(raise_exception=True):
+        att_serializer.is_valid(raise_exception=True)
 
-            with transaction.atomic():
-                att_serializer.save()
+        with transaction.atomic():
+            att_serializer.save()
+
+            # only create pending attendance if added_student is provided
+            if added_student:
+                pen_att_serializer = PendingAttendanceCreateSerializer(
+                    data=request.data,
+                    context={"request": request}
+                )
+                pen_att_serializer.is_valid(raise_exception=True)
                 pen_att_serializer.save()
 
-            return Response({"message": "The attendance was marked sucessfully"}, status=status.HTTP_201_CREATED)
-        return Response(att_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"message": "Attendance marked successfully"},
+            status=status.HTTP_201_CREATED
+        )
     
 class AttendanceStudentInfoView(APIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
     def get(self, request, course_offering):
         student = request.user.student_profile
-        
-        sessions = session.filter(sessions__course_offering=course_offering)
-        attendances = Attendance.objects.filter(student=student, session__course_offering=course_offering, status="Present")
-        misses = Attendance.objects.filter(student=student, session__course_offering=course_offering, status="Absent")
 
+        # ✅ correctly query sessions for this course offering
+        sessions = session.filter(course_offering=course_offering)
+
+        attendances = Attendance.objects.filter(
+            student=student,
+            session__course_offering=course_offering,
+            status=Attendance.AttendanceChoices.PRESENT  
+        )
+        misses = Attendance.objects.filter(
+            student=student,
+            session__course_offering=course_offering,
+            status=Attendance.AttendanceChoices.ABSENT  
+        )
 
         total_sessions = sessions.count()
         total_attendances = attendances.count()
@@ -58,7 +79,6 @@ class AttendanceStudentInfoView(APIView):
             "total_missed": total_missed,
             "attendances": serializer.data
         })
-    
 class AttendanceLecturerInfoView(APIView):
 
     permission_classes = [IsAuthenticated, IsLecturer]

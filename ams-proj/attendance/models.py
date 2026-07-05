@@ -24,7 +24,7 @@ class Attendance(models.Model):
         unique_together = ["student", "session"]
 
     def __str__(self):
-        student = self.student.name if self.student else "Unknown"
+        student = self.student.user.get_full_name() if self.student else "Unknown"  # ← traverse to user
         return f"{student} - {self.session.course_offering.course.name}"
 
 
@@ -37,12 +37,16 @@ class PendingAttendance(models.Model):
     adder = models.ForeignKey(
         "auth_app.Student",
         on_delete=models.CASCADE,
-        related_name='added_attendances'
+        related_name='added_attendances',
+        null=True,
+        blank=True
     )
     added_student = models.ForeignKey(
         "auth_app.Student",
         on_delete=models.CASCADE,
-        related_name='pending_attendances'
+        related_name='pending_attendances',
+        null=True,
+        blank=True
     )
     approved = models.BooleanField(default=False)
     rejected = models.BooleanField(default=False)
@@ -52,11 +56,9 @@ class PendingAttendance(models.Model):
         unique_together = ('session', 'added_student')
 
     def __str__(self):
-        return (
-            f"{self.added_student.user.name} pending in "
-            f"{self.session.course_offering.course.course_name} "
-            f"by {self.adder.user.name}"
-        )
+        adder = self.adder.user.get_full_name() if self.adder else "Unknown"
+        added_student = self.added_student.user.get_full_name() if self.added_student else "Unknown"
+        return f"{added_student} pending in {self.session.course_offering.course.name} by {adder}"
     
 auditlog.register(Attendance)
 auditlog.register(PendingAttendance)
