@@ -46,3 +46,9 @@ class IsAssigned(BasePermission):
     def has_permission(self, request, view):
         user = request.user
         return assignments.filter(lecturer__user=user).exists()
+
+class MustChangePassword(BasePermission):
+    def has_permission(self, request, view):
+        if request.user.is_authenticated and request.user.must_change_password:
+            return False  
+        return True
