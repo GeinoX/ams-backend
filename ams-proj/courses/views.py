@@ -90,3 +90,20 @@ class CourseEnrollmentListView(ListAPIView):
             student__user=user,
             course_offering__semester=active_semester
         )
+
+class CourseEnrollmentDeleteView(DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        student = self.request.user.student_profile
+        course_offering_id = self.kwargs.get("course_offering_id")
+
+        try:
+            enrollment = CourseEnrollment.objects.get(
+                student=student,
+                course_offering=course_offering_id
+            )
+        except CourseEnrollment.DoesNotExist:
+            raise NotFound("Enrollment not found.")
+
+        return enrollment

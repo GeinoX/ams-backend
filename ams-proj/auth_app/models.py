@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from cloudinary.models import CloudinaryField
 from django.utils import timezone
 from datetime import timedelta
-
+from auditlog.registry import auditlog
 
 
 class Faculty(models.Model):
@@ -196,3 +196,9 @@ class PasswordResetOTP(models.Model):
 
     def __str__(self):
         return f"{self.user.school_email} - {self.otp}"
+    
+
+auditlog.register(CustomUser, exclude_fields=["password", "last_login"])
+auditlog.register(Student)
+auditlog.register(Lecturer)
+auditlog.register(Staff)

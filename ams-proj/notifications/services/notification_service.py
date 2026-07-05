@@ -1,5 +1,5 @@
-from tasks import send_push_notification, send_email_notification, send_inapp_notification
-from models import Notification, NotificationType
+from notifications.tasks import send_push_notification, send_email_notification, send_inapp_notification
+from notifications.models import Notification, NotificationType
 
 
 class NotificationService:

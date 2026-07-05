@@ -1,6 +1,7 @@
 from django.db import models
 import uuid
 from django.conf import settings
+from auditlog.registry import auditlog
 
 
 # Create your models here.
@@ -87,3 +88,7 @@ class DeviceToken(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.token[:20]}"
+    
+
+auditlog.register(Notification)
+auditlog.register(DeviceToken)

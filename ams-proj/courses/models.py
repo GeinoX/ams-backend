@@ -1,8 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 from django.utils.translation import gettext_lazy as _
-
-
+from auditlog.registry import auditlog
 
 # Create your models here.
 
@@ -99,5 +98,11 @@ class CourseEnrollment(models.Model):
         unique_together = ["student", "course_offering"]
 
     def __str__(self):
-        student = self.student.matricule if self.student else "Unkwown"
+        student = self.student.matricule if self.student else "Unknown"
         return f"{student} enrolled in {self.course_offering.course.name}"
+    
+auditlog.register(Course)
+auditlog.register(Semester)
+auditlog.register(CourseOffering)
+auditlog.register(CourseAssignment)
+auditlog.register(CourseEnrollment)

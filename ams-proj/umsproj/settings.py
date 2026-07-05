@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'attendance',
     'core',
     'notifications',
+    'auditlog',
     
 ]
 
@@ -118,6 +119,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'auditlog.middleware.AuditlogMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

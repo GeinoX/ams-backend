@@ -1,3 +1,4 @@
+"""
 from django.contrib import admin
 from .models import Student, Lecturer, Staff, CustomUser
 from notifications.services.notification_service import NotificationService
@@ -47,3 +48,4 @@ class StaffAdmin(admin.ModelAdmin):
 admin.site.register(Student, StudentAdmin)
 admin.site.register(Lecturer, LecturerAdmin)
 admin.site.register(Staff, StaffAdmin)
+"""

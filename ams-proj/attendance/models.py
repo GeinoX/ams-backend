@@ -1,7 +1,7 @@
 from django.db import models
 import uuid
 from django.utils.translation import gettext_lazy as _
-
+from auditlog.registry import auditlog
 
 # Create your models here.
 
@@ -57,3 +57,6 @@ class PendingAttendance(models.Model):
             f"{self.session.course_offering.course.course_name} "
             f"by {self.adder.user.name}"
         )
+    
+auditlog.register(Attendance)
+auditlog.register(PendingAttendance)
