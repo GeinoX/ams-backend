@@ -8,32 +8,6 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = ["id", "name", "credit", "level"]
 
-class CourseOfferingListSerializer(serializers.ModelSerializer):
-    course_id = serializers.CharField(source="course.id", read_only=True)
-    course_name = serializers.CharField(source="course.name", read_only=True)
-    credits = serializers.CharField(source="course.credits", read_only=True)
-    semester = serializers.CharField(source="semester.name", read_only=True)
-
-    class Meta:
-        model = CourseOffering
-        fields = ["id", "course", "course_id", "course_name", "credits", "semester", "year"]
-
-class CourseAssignmentSerializer(serializers.ModelSerializer):
-    
-    lecturer_name = serializers.CharField(source="lecturer.user.name", read_only=True)
-    course_id = serializers.CharField(source="course_offering.course.course_id", read_only=True)
-    course_name = serializers.CharField(source="course_offering.course.course_name", read_only=True)
-    semester = serializers.CharField(source="course_offering.semester.name", read_only=True)
-    year = serializers.IntegerField(source="course_offering.year", read_only=True)
-
-    class Meta:
-        model = CourseAssignment
-        fields = [
-            "id", "lecturer", "lecturer_name", "course_offering",
-            "course_id", "course_name", "semester", "year",
-        ]
-
-
 class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -61,10 +35,36 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
     
 
 class CourseEnrollmentListSerializer(serializers.ModelSerializer):
-    course_id = serializers.CharField(source="course_offering.course.course_id", read_only=True)
-    course_name = serializers.CharField(source="course_offering.course.course_name", read_only=True)
-    credits = serializers.CharField(source="course_offering.course.credits", read_only=True)
+    course_id = serializers.CharField(source="course_offering.course.id", read_only=True)  
+    course_name = serializers.CharField(source="course_offering.course.name", read_only=True)
+    credits = serializers.IntegerField(source="course_offering.course.credits", read_only=True)
 
     class Meta:
         model = CourseEnrollment
-        fields = ["course_offering", "course_id", "course_name", "credits "]
+        fields = ["course_offering", "course_id", "course_name", "credits"]
+
+
+class CourseOfferingListSerializer(serializers.ModelSerializer):
+    course_id = serializers.CharField(source="course.id", read_only=True)
+    course_name = serializers.CharField(source="course.name", read_only=True)
+    credits = serializers.IntegerField(source="course.credits", read_only=True)  
+    semester = serializers.CharField(source="semester.name", read_only=True)
+
+    class Meta:
+        model = CourseOffering
+        fields = ["id", "course_id", "course_name", "credits", "semester", "year"] 
+
+
+class CourseAssignmentSerializer(serializers.ModelSerializer):
+    lecturer_name = serializers.CharField(source="lecturer.user.get_full_name", read_only=True)  # ✅ .name → .get_full_name
+    course_id = serializers.CharField(source="course_offering.course.id", read_only=True)  # ✅ .course_id → .id
+    course_name = serializers.CharField(source="course_offering.course.name", read_only=True)  # ✅ .course_name → .name
+    semester = serializers.CharField(source="course_offering.semester.name", read_only=True)
+    year = serializers.IntegerField(source="course_offering.year", read_only=True)
+
+    class Meta:
+        model = CourseAssignment
+        fields = [
+            "id", "lecturer_name", "course_id",
+            "course_name", "semester", "year",
+        ]

@@ -3,8 +3,7 @@ from .views import SessionCreateView, SessionEndView
 
 
 urlpatterns = [
-    path("create/", SessionCreateView.as_view(), name="Create Session"),
-    path("end/", SessionEndView.as_view(), name="End Session"),
-    
+    path("lecturer/create/", SessionCreateView.as_view(), name="Create Session"),
+    path("lecturer/end/", SessionEndView.as_view(), name="End Session"),
 ]
 
