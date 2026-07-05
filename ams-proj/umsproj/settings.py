@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from celery.schedules import crontab
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'channels',
     'auth_app',
     'courses',
@@ -66,11 +69,15 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=200),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=35),
+
     "ROTATE_REFRESH_TOKENS": True,                
-    "BLACKLIST_AFTER_ROTATION": True,        
+    "BLACKLIST_AFTER_ROTATION": True,   
+
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,             
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_TYPES": ("Bearer",),    # ← Authorization: Bearer <token>
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
 }
 
 
@@ -87,6 +94,13 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
+
+CELERY_BEAT_SCHEDULE = {
+    "auto-end-expired-sessions": {
+        "task": "sessions.tasks.auto_end_expired_sessions",
+        "schedule": crontab(minute="*/30"),  # runs every 30 minutes
+    }
+}
 
 EMAIL_BACKEND = (
     "django.core.mail.backends.smtp.EmailBackend"
