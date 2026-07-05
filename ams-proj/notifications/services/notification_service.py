@@ -98,6 +98,30 @@ class NotificationService:
             notiftype=["email", "inapp"]
         )
 
+    # ------- Account -------
+    @staticmethod
+    def account_credentials(user, temporary_password):
+        NotificationService._create(
+                recipient=user,
+            title="Your Account Has Been Created",
+            body=f"Dear {user.get_full_name()}, your account has been created. "
+                 f"Your temporary password is: {temporary_password}. "
+                 f"Please log in and change your password immediately.",
+            type=NotificationType.REGISTERED,
+            notiftype=["email"]  # ← email only, sensitive info
+        )
+
+    @staticmethod
+    def password_reset_otp(user, otp):
+     NotificationService._create(
+            recipient=user,
+            title="Password Reset OTP",
+            body=f"Dear {user.get_full_name()}, your OTP for password reset is {otp}. "
+                 f"It expires in 10 minutes. Do not share it with anyone.",
+           type=NotificationType.PASSWORD_RESET,
+           notiftype=["email"]  # ← email only, sensitive info
+     )
+
     # ------- Course -------
     @staticmethod
     def course_created(user, course):
