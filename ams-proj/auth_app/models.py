@@ -3,6 +3,9 @@ from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, Permis
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from cloudinary.models import CloudinaryField
+from django.utils import timezone
+from datetime import timedelta
+
 
 
 class Faculty(models.Model):
@@ -69,7 +72,7 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(first_name, last_name, school_email, gender, phone, password, **extra_fields)
 
     def create_admin(self, first_name: str, last_name: str, school_email: str, gender: str, phone: str, password: str, email: str, faculty, **extra_fields) -> "CustomUser":
-        extra_fields.update({"is_active": True, "is_staff": True, "is_superuser": False})
+        extra_fields.update({"is_active": True, "is_staff": True, "is_superuser": False, "must_change_password": True})
         return self.create_user(first_name, last_name, school_email, gender, phone, password, email, faculty, **extra_fields)
 
 
@@ -101,6 +104,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         blank=True,
         null=True,
     )
+    must_change_password = models.BooleanField(default=False)
     is_active = models.BooleanField(_("Active"), default=True)
     is_staff = models.BooleanField(_("Staff Status"), default=False)
     date_joined = models.DateTimeField(_("Date Joined"), auto_now_add=True)
@@ -174,3 +178,21 @@ class Staff(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.get_full_name()} — {self.position}"
+
+
+class PasswordResetOTP(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="password_reset_otp"
+    )
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    def is_valid(self):
+        return not self.is_used and timezone.now() < self.expires_at
+
+    def __str__(self):
+        return f"{self.user.school_email} - {self.otp}"
