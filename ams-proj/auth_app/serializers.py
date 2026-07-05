@@ -336,3 +336,5 @@ class LogoutSerializer(serializers.Serializer):
             token.blacklist()
         except TokenError:
             raise serializers.ValidationError({"refresh": "Token is invalid or already blacklisted"})
+
+

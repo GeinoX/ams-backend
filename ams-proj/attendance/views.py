@@ -59,7 +59,7 @@ class AttendanceStudentInfoView(APIView):
             "attendances": serializer.data
         })
     
-class AttendanceTeacherInfoView(APIView):
+class AttendanceLecturerInfoView(APIView):
 
     permission_classes = [IsAuthenticated, IsLecturer]
 
