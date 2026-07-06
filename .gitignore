@@ -1,3 +1,7 @@
+# environment variables
+.env
+.env.example
+
 # virtual environment
 venv/
 .venv/
@@ -10,6 +14,8 @@ __pycache__/
 # Django
 db.sqlite3
 *.log
+/staticfiles/
+/media/
 
 # IDEs
 .vscode/

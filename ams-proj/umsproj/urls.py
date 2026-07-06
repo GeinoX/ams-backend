@@ -25,6 +25,7 @@ urlpatterns = [
     path('auth_app/', include('auth_app.urls')),
     path('courses/', include('courses.urls')),
     path('attendance/', include('attendance.urls')),
+    path("", include("django_prometheus.urls")),
     path('sessions/', include('class_sessions.urls')),
 ]
 
@@ -42,3 +43,6 @@ user = s.user
 
 print(user.profile_image.path)
 """
+
+
+
