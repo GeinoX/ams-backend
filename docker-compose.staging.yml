@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+
+  web:
+    image: ${DOCKER_HUB_USERNAME}/ams-backend:staging
+    restart: always
+    env_file:
+      - .env.staging
+    depends_on:
+      - redis
+    expose:
+      - "8000"
+
+  celery:
+    image: ${DOCKER_HUB_USERNAME}/ams-backend:staging
+    command: celery -A umsproj worker -l info
+    restart: always
+    env_file:
+      - .env.staging
+    depends_on:
+      - redis
+
+  celery-beat:
+    image: ${DOCKER_HUB_USERNAME}/ams-backend:staging
+    command: celery -A umsproj beat -l info
+    restart: always
+    env_file:
+      - .env.staging
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/ssl:/etc/nginx/ssl
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    depends_on:
+      - web
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+
+volumes:
+  certbot_www:
+  certbot_conf:
