@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     'channels',
-    'umsapp',
+    #'umsapp',
     "django_prometheus",
     "auth_app",
     "courses",
