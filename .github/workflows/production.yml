@@ -109,7 +109,7 @@ jobs:
         with:
           host: ${{ secrets.PROD_SERVER_IP }}
           username: ${{ secrets.PROD_SERVER_USER }}
-          password: ${{ secrets.PROD_SERVER_PASSWORD }}  # ← password auth
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
           envs: SECRET_KEY,DOCKER_HUB_USERNAME,DB_NAME,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DATABASE_URL,REDIS_URL,CELERY_BROKER_URL,CELERY_RESULT_BACKEND,EMAIL_HOST,EMAIL_PORT,EMAIL_USE_TLS,EMAIL_HOST_USER,EMAIL_HOST_PASSWORD,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,SENTRY_DSN,GRAFANA_USER,GRAFANA_PASSWORD
           script: |
             mkdir -p /opt/ams
@@ -153,5 +153,6 @@ jobs:
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate
-            docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
+            docker compose -f docker-compose.prod.yml exec -T -u root web python manage.py collectstatic --noinput
+            docker compose -f docker-compose.prod.yml exec -T -u root web chown -R django:django /app/staticfiles
             docker image prune -f
