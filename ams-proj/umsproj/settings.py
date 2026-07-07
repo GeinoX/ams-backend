@@ -105,7 +105,7 @@ if IS_PRODUCTION:
         "default": dj_database_url.config(
             default=os.environ["DATABASE_URL"],
             conn_max_age=600,
-            ssl_require=IS_PRODUCTION,
+            ssl_require=os.environ.get("DB_SSL_REQUIRE", "False") == "True",
         )
     }
     DATABASES["default"]["ENGINE"] = "django_prometheus.db.backends.postgresql"
