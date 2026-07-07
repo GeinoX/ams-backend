@@ -57,13 +57,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           target: production
@@ -83,54 +83,70 @@ jobs:
 
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          CELERY_BROKER_URL: ${{ secrets.CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND: ${{ secrets.REDIS_RESULT_BACKEND }}
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS }}
+          EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+          EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          GRAFANA_USER: ${{ secrets.GRAFANA_USER }}
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
         with:
           host: ${{ secrets.PROD_SERVER_IP }}
           username: ${{ secrets.PROD_SERVER_USER }}
-          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}  # ← password auth
+          envs: SECRET_KEY,DOCKER_HUB_USERNAME,DB_NAME,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,REDIS_URL,CELERY_BROKER_URL,CELERY_RESULT_BACKEND,EMAIL_HOST,EMAIL_PORT,EMAIL_USE_TLS,EMAIL_HOST_USER,EMAIL_HOST_PASSWORD,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,SENTRY_DSN,GRAFANA_USER,GRAFANA_PASSWORD
           script: |
-            # generate .env.prod
+            mkdir -p /opt/ams
+
             cat > /opt/ams/.env.prod << EOF
-            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SECRET_KEY=${SECRET_KEY}
             DEBUG=False
             ALLOWED_HOSTS=api.yourdomain.com
-            ENVIRONMENT=production
+            ENV=production
 
-            # Database
-            DB_NAME=${{ secrets.DB_NAME }}
-            DB_USER=${{ secrets.DB_USER }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            DB_HOST=${{ secrets.DB_HOST }}
-            DB_PORT=${{ secrets.DB_PORT }}
+            DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME}
 
-            # Redis
-            REDIS_URL=${{ secrets.REDIS_URL }}
-            CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}
-            CELERY_RESULT_BACKEND=${{ secrets.REDIS_RESULT_BACKEND }}
+            DB_NAME=${DB_NAME}
+            DB_USER=${DB_USER}
+            DB_PASSWORD=${DB_PASSWORD}
+            DB_HOST=${DB_HOST}
+            DB_PORT=${DB_PORT}
 
-            # Email
-            EMAIL_HOST=${{ secrets.EMAIL_HOST }}
-            EMAIL_PORT=${{ secrets.EMAIL_PORT }}
-            EMAIL_USE_TLS=${{ secrets.EMAIL_USE_TLS }}
-            EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}
-            EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+            REDIS_URL=${REDIS_URL}
+            CELERY_BROKER_URL=${CELERY_BROKER_URL}
+            CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
 
-            # Cloudinary
-            CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
-            CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
-            CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+            EMAIL_HOST=${EMAIL_HOST}
+            EMAIL_PORT=${EMAIL_PORT}
+            EMAIL_USE_TLS=${EMAIL_USE_TLS}
+            EMAIL_HOST_USER=${EMAIL_HOST_USER}
+            EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
 
-            # Sentry
-            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+            CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+            CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
 
-            # Grafana
-            GRAFANA_USER=${{ secrets.GRAFANA_USER }}
-            GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
+            SENTRY_DSN=${SENTRY_DSN}
 
-            # Docker
-            DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
+            GRAFANA_USER=${GRAFANA_USER}
+            GRAFANA_PASSWORD=${GRAFANA_PASSWORD}
             EOF
 
-            # deploy
             cd /opt/ams
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
