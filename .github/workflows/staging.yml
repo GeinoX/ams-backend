@@ -100,9 +100,48 @@ jobs:
           username: ${{ secrets.STAGING_SERVER_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
+            # generate .env.staging
+            cat > /opt/ams/.env.staging << EOF
+            SECRET_KEY=${{ secrets.STAGING_SECRET_KEY }}
+            DEBUG=False
+            ALLOWED_HOSTS=staging-api.yourdomain.com
+            ENVIRONMENT=staging
+
+            # Database
+            DB_NAME=${{ secrets.STAGING_DB_NAME }}
+            DB_USER=${{ secrets.STAGING_DB_USER }}
+            DB_PASSWORD=${{ secrets.STAGING_DB_PASSWORD }}
+            DB_HOST=${{ secrets.STAGING_DB_HOST }}
+            DB_PORT=${{ secrets.STAGING_DB_PORT }}
+
+            # Redis
+            REDIS_URL=${{ secrets.STAGING_REDIS_URL }}
+            CELERY_BROKER_URL=${{ secrets.STAGING_CELERY_BROKER_URL }}
+            CELERY_RESULT_BACKEND=${{ secrets.STAGING_REDIS_RESULT_BACKEND }}
+
+            # Email
+            EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+            EMAIL_PORT=${{ secrets.EMAIL_PORT }}
+            EMAIL_USE_TLS=${{ secrets.EMAIL_USE_TLS }}
+            EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}
+            EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+
+            # Cloudinary
+            CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+            CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+            CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+
+            # Sentry
+            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+
+            # Docker
+            DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
+            EOF
+
+            # deploy
             cd /opt/ams
             docker compose -f docker-compose.staging.yml pull
             docker compose -f docker-compose.staging.yml up -d --remove-orphans
-            docker compose -f docker-compose.staging.yml exec web python manage.py migrate
-            docker compose -f docker-compose.staging.yml exec web python manage.py collectstatic --noinput
+            docker compose -f docker-compose.staging.yml exec -T web python manage.py migrate
+            docker compose -f docker-compose.staging.yml exec -T web python manage.py collectstatic --noinput
             docker image prune -f
