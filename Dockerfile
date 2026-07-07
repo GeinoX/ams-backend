@@ -31,7 +31,15 @@ COPY ams-proj/ .
 # -------- Production --------
 FROM base AS production
 
+# create django user
 RUN addgroup --system django && adduser --system --ingroup django django
+
+# create necessary directories and set permissions BEFORE switching user
+RUN mkdir -p /app/staticfiles /app/media \
+    && chown -R django:django /app/staticfiles /app/media \
+    && chmod -R 755 /app/staticfiles /app/media
+
+# switch to django user
 USER django
 
 EXPOSE 8000
