@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: AMS Deploy to Production
 
 on:
   push:
@@ -73,7 +73,7 @@ jobs:
             ${{ secrets.DOCKER_HUB_USERNAME }}/ams-backend:${{ github.sha }}
 
   deploy:
-    name: Deploy to DigitalOcean
+    name: Deploy to Contabo
     runs-on: ubuntu-latest
     needs: build
 
@@ -114,10 +114,10 @@ jobs:
           script: |
             mkdir -p /opt/ams
 
-            cat > /opt/ams/.env.prod << EOF
+            cat > /opt/ams/.env << EOF
             SECRET_KEY=${SECRET_KEY}
             DEBUG=False
-            ALLOWED_HOSTS=api.yourdomain.com
+            ALLOWED_HOSTS=api.yourdomain.com,web
             ENV=production
 
             DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME}
@@ -126,7 +126,10 @@ jobs:
             DB_USER=${DB_USER}
             DB_PASSWORD=${DB_PASSWORD}
             DB_HOST=${DB_HOST}
-            DB_PORT=${DB_PORT}
+            DB_PORT=${DB_PORT}}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          envs: SECRET_KEY,DOCKER_HUB_USERNAME,DB_NAME,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DATABASE_URL,REDIS_URL,CELERY_BROKER_URL,CELERY_RESULT_BACKEND,EMAIL_HOST,EMAIL_PORT,EMAIL_USE_TLS,EMAIL_HOST_USER,EMAIL_HOST_PASSWORD,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,SENTRY_DSN,GRAFANA_USER,GRAFANA_PASSWORD
+          script: |
             DATABASE_URL=${DATABASE_URL}
 
             REDIS_URL=${REDIS_URL}
