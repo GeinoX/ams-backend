@@ -38,7 +38,7 @@ class StaffLoginView(TokenObtainPairView):
 
 # ------- Register -------
 class StudentRegisterView(APIView):
-
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
         if serializer.is_valid():
@@ -48,7 +48,7 @@ class StudentRegisterView(APIView):
 
 
 class LecturerRegisterView(APIView):
-
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = LecturerRegisterSerializer(data=request.data)
         if serializer.is_valid():
@@ -58,7 +58,7 @@ class LecturerRegisterView(APIView):
 
 
 class StaffRegisterView(APIView):
-
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = StaffRegisterSerializer(data=request.data)
         if serializer.is_valid():
