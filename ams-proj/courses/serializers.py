@@ -56,15 +56,43 @@ class CourseOfferingListSerializer(serializers.ModelSerializer):
 
 
 class CourseAssignmentSerializer(serializers.ModelSerializer):
-    lecturer_name = serializers.CharField(source="lecturer.user.get_full_name", read_only=True)  # ✅ .name → .get_full_name
-    course_id = serializers.CharField(source="course_offering.course.id", read_only=True)  # ✅ .course_id → .id
-    course_name = serializers.CharField(source="course_offering.course.name", read_only=True)  # ✅ .course_name → .name
-    semester = serializers.CharField(source="course_offering.semester.name", read_only=True)
-    year = serializers.IntegerField(source="course_offering.year", read_only=True)
+    id = serializers.IntegerField(
+        source="course_offering.id",
+        read_only=True,
+    )
+
+    lecturer_name = serializers.CharField(
+        source="lecturer.user.get_full_name",
+        read_only=True,
+    )
+
+    course_id = serializers.CharField(
+        source="course_offering.course.id",
+        read_only=True,
+    )
+
+    course_name = serializers.CharField(
+        source="course_offering.course.name",
+        read_only=True,
+    )
+
+    semester = serializers.CharField(
+        source="course_offering.semester.name",
+        read_only=True,
+    )
+
+    year = serializers.IntegerField(
+        source="course_offering.year",
+        read_only=True,
+    )
 
     class Meta:
         model = CourseAssignment
         fields = [
-            "id", "lecturer_name", "course_id",
-            "course_name", "semester", "year",
+            "id",
+            "lecturer_name",
+            "course_id",
+            "course_name",
+            "semester",
+            "year",
         ]

@@ -5,7 +5,7 @@ from celery import Celery
 
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE",
-    "umsproj.settings"
+    "umsproj.settings.development"
 )
 
 app = Celery("umsproj")

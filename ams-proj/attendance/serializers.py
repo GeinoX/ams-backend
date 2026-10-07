@@ -96,8 +96,20 @@ class AttendanceStudentInfoSerializer(serializers.ModelSerializer):
           model = Attendance
           fields = ["id", "session", "status", "created_at"]
 
+
 class AttendanceLecturerInfoSerializer(serializers.ModelSerializer):
-        
-     class Meta:
-          model = Attendance
-          fields = ["id", "session", "status", "created_at"]
+    student_name = serializers.CharField(
+        source="student.user.get_full_name",
+        read_only=True
+    )
+
+    class Meta:
+        model = Attendance
+        fields = [
+            "id",
+            "session",
+            "student",
+            "student_name",
+            "status",
+            "created_at",
+        ]

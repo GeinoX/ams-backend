@@ -1,107 +1,180 @@
-from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from .models import Student, Lecturer, Staff, Faculty
-import random
-from django.utils import timezone
-from datetime import timedelta
 from rest_framework import serializers
-from .models import CustomUser, PasswordResetOTP
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
-from core.utils import get_enrollments, get_sessions
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 
-session = get_sessions()
-course_enrollment = get_enrollments()
+from rest_framework import serializers
+
+from .models import PasswordResetOTP
+
+
 User = get_user_model()
+from .models import (
+    Faculty,
+    Student,
+    Lecturer,
+    Staff,
+)
+
+User = get_user_model()
+
+
+class FacultySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Faculty
+        fields = [
+            "id",
+            "name",
+        ]
+
+
+# ============================================================
+# LOGIN SERIALIZERS
+# ============================================================
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
 class StudentTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        if not hasattr(self.user, "student_profile"):
-            raise serializers.ValidationError("You are not authorized to log in here")
+        try:
+            self.user.student_profile
+        except Student.DoesNotExist:
+            raise serializers.ValidationError(
+                "This account is not registered as a student."
+            )
 
         data["must_change_password"] = self.user.must_change_password
+
         return data
+
 
 class LecturerTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        if not hasattr(self.user, "lecturer_profile"):
-            raise serializers.ValidationError("You are not authorized to log in here")
+        try:
+            self.user.lecturer_profile
+        except Lecturer.DoesNotExist:
+            raise serializers.ValidationError(
+                "This account is not registered as a lecturer."
+            )
 
         data["must_change_password"] = self.user.must_change_password
+
         return data
+
 
 class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        if not hasattr(self.user, "staff_profile"):
-            raise serializers.ValidationError("You are not authorized to log in here")
+        try:
+            self.user.staff_profile
+        except Staff.DoesNotExist:
+            raise serializers.ValidationError(
+                "This account is not registered as staff."
+            )
 
         data["must_change_password"] = self.user.must_change_password
+
         return data
 
+
+# ============================================================
+# USER INFO SERIALIZERS
+# ============================================================
+
 class StudentInfoSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source="user.get_full_name", read_only=True)
+    matricule = serializers.CharField(
+        source="matricule",
+        read_only=True,
+    )
+
+    name = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
-        fields = ["matricule", "name", "image"]
+        fields = [
+            "matricule",
+            "name",
+            "image",
+        ]
+
+    def get_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip()
 
     def get_image(self, obj):
         if obj.user.profile_image:
             return obj.user.profile_image.url
+
         return None
 
 
 class LecturerInfoSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source="user.get_full_name", read_only=True)
+    name = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
 
     class Meta:
         model = Lecturer
-        fields = ["employee_id", "name", "image"]
+        fields = [
+            "employee_id",
+            "name",
+            "image",
+        ]
+
+    def get_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip()
 
     def get_image(self, obj):
         if obj.user.profile_image:
             return obj.user.profile_image.url
+
         return None
 
 
 class StaffInfoSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source="user.get_full_name", read_only=True)
+    name = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
 
     class Meta:
         model = Staff
-        fields = ["position", "name", "image"]
+        fields = [
+            "position",
+            "name",
+            "image",
+        ]
+
+    def get_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip()
 
     def get_image(self, obj):
         if obj.user.profile_image:
             return obj.user.profile_image.url
+
         return None
 
-class FacultySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Faculty
-        fields = ["id", "name"]
 
+# ============================================================
+# BASE REGISTRATION SERIALIZER
+# ============================================================
 
 class BaseRegisterSerializer(serializers.ModelSerializer):
-    """
-    Shared registration serializer for all user types.
-    Subclasses must implement `create()` to handle role-specific profile creation.
-    """
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
 
-    password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
-    profile_image_url = serializers.SerializerMethodField(read_only=True)
+    profile_image_url = serializers.URLField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = User
@@ -117,224 +190,525 @@ class BaseRegisterSerializer(serializers.ModelSerializer):
             "profile_image",
             "profile_image_url",
         ]
-        extra_kwargs = {
-            "profile_image": {"write_only": True, "required": False},
-            "faculty": {"required": False},
-            "email": {"required": False},
-        }
 
-    def get_profile_image_url(self, obj: User) -> str | None:
-        if obj.profile_image:
-            return obj.profile_image.url
-        return None
+    def create_user(self, validated_data):
+        profile_image_url = validated_data.pop(
+            "profile_image_url",
+            None,
+        )
 
-    def validate_school_email(self, value: str) -> str:
-        if User.objects.filter(school_email__iexact=value).exists():
-            raise serializers.ValidationError("A user with this school email already exists.")
-        return value.lower()
-
-    def validate_email(self, value: str) -> str:
-        if value and User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value.lower() if value else value
-
-    @transaction.atomic
-    def create(self, validated_data: dict) -> User:
         password = validated_data.pop("password")
-        return User.objects.create_user(**validated_data, password=password)
 
+        user = User.objects.create_user(
+            password=password,
+            **validated_data,
+        )
+
+        if profile_image_url:
+            # Keep your existing Cloudinary/profile-image
+            # handling here if you already have one.
+            pass
+
+        return user
+
+
+# ============================================================
+# STUDENT REGISTRATION
+# ============================================================
 
 class StudentRegisterSerializer(BaseRegisterSerializer):
-    matricule = serializers.CharField(max_length=15)
+    matricule = serializers.CharField(
+        max_length=15,
+    )
 
     class Meta(BaseRegisterSerializer.Meta):
-        fields = BaseRegisterSerializer.Meta.fields + ["matricule"]
+        fields = BaseRegisterSerializer.Meta.fields + [
+            "matricule",
+        ]
 
-    def validate_matricule(self, value: str) -> str:
+    def validate_matricule(self, value):
         if Student.objects.filter(matricule=value).exists():
-            raise serializers.ValidationError("A student with this matricule already exists.")
+            raise serializers.ValidationError(
+                "A student with this matricule already exists."
+            )
+
         return value
 
     @transaction.atomic
-    def create(self, validated_data: dict) -> User:
+    def create(self, validated_data):
         matricule = validated_data.pop("matricule")
-        user = super().create(validated_data)
-        Student.objects.create(user=user, matricule=matricule)
+
+        user = self.create_user(validated_data)
+
+        Student.objects.create(
+            user=user,
+            matricule=matricule,
+        )
+
         return user
 
+
+# ============================================================
+# LECTURER SELF-REGISTRATION
+# ============================================================
 
 class LecturerRegisterSerializer(BaseRegisterSerializer):
-    employee_id = serializers.CharField(max_length=50)
+    employee_id = serializers.CharField(
+        max_length=50,
+    )
 
     class Meta(BaseRegisterSerializer.Meta):
-        fields = BaseRegisterSerializer.Meta.fields + ["employee_id"]
+        fields = BaseRegisterSerializer.Meta.fields + [
+            "employee_id",
+        ]
 
-    def validate_employee_id(self, value: str) -> str:
+    def validate_employee_id(self, value):
         if Lecturer.objects.filter(employee_id=value).exists():
-            raise serializers.ValidationError("A lecturer with this employee ID already exists.")
+            raise serializers.ValidationError(
+                "A lecturer with this employee ID already exists."
+            )
+
         return value
 
     @transaction.atomic
-    def create(self, validated_data: dict) -> User:
+    def create(self, validated_data):
         employee_id = validated_data.pop("employee_id")
-        user = super().create(validated_data)
-        Lecturer.objects.create(user=user, employee_id=employee_id)
+
+        user = self.create_user(validated_data)
+
+        Lecturer.objects.create(
+            user=user,
+            employee_id=employee_id,
+        )
+
         return user
 
+
+# ============================================================
+# STAFF REGISTRATION
+# ============================================================
 
 class StaffRegisterSerializer(BaseRegisterSerializer):
-    position = serializers.CharField(max_length=100)
+    position = serializers.CharField(
+        max_length=100,
+    )
 
     class Meta(BaseRegisterSerializer.Meta):
-        fields = BaseRegisterSerializer.Meta.fields + ["position"]
+        fields = BaseRegisterSerializer.Meta.fields + [
+            "position",
+        ]
 
     @transaction.atomic
-    def create(self, validated_data: dict) -> User:
+    def create(self, validated_data):
         position = validated_data.pop("position")
-        user = super().create(validated_data)
-        Staff.objects.create(user=user, position=position)
+
+        user = self.create_user(validated_data)
+
+        Staff.objects.create(
+            user=user,
+            position=position,
+        )
+
         return user
 
+
+# ============================================================
+# ADMIN CREATE LECTURER
+# ============================================================
+
+import secrets
+import string
+
+
+class AdminCreateLecturerSerializer(serializers.Serializer):
+    first_name = serializers.CharField(
+        max_length=150,
+    )
+
+    last_name = serializers.CharField(
+        max_length=150,
+    )
+
+    school_email = serializers.EmailField()
+
+    email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    gender = serializers.ChoiceField(
+        choices=User.GenderChoices.choices,
+    )
+
+    phone = serializers.CharField(
+        max_length=20,
+    )
+
+    # faculty = serializers.PrimaryKeyRelatedField(
+    #     queryset=Faculty.objects.all(),
+    #     required=False,
+    #     allow_null=True,
+    # )
+
+    employee_id = serializers.CharField(
+        max_length=50,
+    )
+
+    def validate_school_email(self, value):
+        value = value.lower().strip()
+
+        if User.objects.filter(
+            school_email__iexact=value
+        ).exists():
+            raise serializers.ValidationError(
+                "A user with this school email already exists."
+            )
+
+        return value
+
+    def validate_employee_id(self, value):
+        value = value.strip()
+
+        if Lecturer.objects.filter(
+            employee_id=value
+        ).exists():
+            raise serializers.ValidationError(
+                "A lecturer with this employee ID already exists."
+            )
+
+        return value
+
+    @staticmethod
+    def generate_temporary_password(length=12):
+        alphabet = (
+            string.ascii_letters
+            + string.digits
+            + "!@#$%^&*"
+        )
+
+        return "".join(
+            secrets.choice(alphabet)
+            for _ in range(length)
+        )
+
+    @transaction.atomic
+    def create(self, validated_data):
+        employee_id = validated_data.pop(
+            "employee_id"
+        )
+
+        temporary_password = (
+            self.generate_temporary_password()
+        )
+
+        user = User.objects.create_user(
+            password=temporary_password,
+            **validated_data,
+        )
+
+        user.must_change_password = True
+
+        user.save(
+            update_fields=[
+                "must_change_password",
+            ]
+        )
+
+        lecturer = Lecturer.objects.create(
+            user=user,
+            employee_id=employee_id,
+        )
+
+        # Temporary internal attribute.
+        # This is NOT returned to the client.
+        lecturer._temporary_password = temporary_password
+
+        return lecturer
+
+
+# ============================================================
+# CHANGE PASSWORD
+# ============================================================
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(
+        write_only=True,
+    )
+
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
+
+    confirm_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+
+        if not user.check_password(
+            attrs["old_password"]
+        ):
+            raise serializers.ValidationError({
+                "old_password": (
+                    "Current password is incorrect."
+                )
+            })
+
+        if (
+            attrs["new_password"]
+            != attrs["confirm_password"]
+        ):
+            raise serializers.ValidationError({
+                "confirm_password": (
+                    "Passwords do not match."
+                )
+            })
+
+        if (
+            attrs["old_password"]
+            == attrs["new_password"]
+        ):
+            raise serializers.ValidationError({
+                "new_password": (
+                    "New password must be different "
+                    "from the current password."
+                )
+            })
+
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+
+        user.set_password(
+            self.validated_data["new_password"]
+        )
+
+        user.must_change_password = False
+
+        user.save(
+            update_fields=[
+                "password",
+                "must_change_password",
+            ]
+        )
+
+        return user
 
 class PasswordResetRequestSerializer(serializers.Serializer):
     school_email = serializers.EmailField()
 
     def validate_school_email(self, value):
-        if not CustomUser.objects.filter(school_email=value).exists():
-            raise serializers.ValidationError("No account found with this email")
+        value = value.lower().strip()
+
+        try:
+            user = User.objects.get(
+                school_email__iexact=value
+            )
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                "No account exists with this email address."
+            )
+
+        if not user.is_active:
+            raise serializers.ValidationError(
+                "This account is inactive."
+            )
+
+        self.user = user
+
         return value
 
-    def save(self):
-        school_email = self.validated_data["school_email"]
-        user = CustomUser.objects.get(school_email=school_email)
+    def save(self, **kwargs):
+        from datetime import timedelta
+        import secrets
 
-        # generate 6 digit OTP
-        otp = str(random.randint(100000, 999999))
+        user = self.user
 
-        # delete any existing OTP for this user
-        PasswordResetOTP.objects.filter(user=user).delete()
+        # Generate a 6-digit OTP
+        otp = f"{secrets.randbelow(1_000_000):06d}"
 
-        # create new OTP valid for 10 minutes
-        PasswordResetOTP.objects.create(
+        now = timezone.now()
+
+        # Invalidate any previous OTP
+        PasswordResetOTP.objects.filter(
             user=user,
-            otp=otp,
-            expires_at=timezone.now() + timedelta(minutes=10)
+            is_used=False,
+        ).update(
+            is_used=True
         )
 
-        # send notification
-        from notifications.services.notification_service import NotificationService
-        NotificationService.password_reset_otp(user, otp)
+        # Create new OTP
+        reset_otp = PasswordResetOTP.objects.create(
+            user=user,
+            otp=otp,
+            expires_at=now + timedelta(minutes=10),
+        )
 
-        return user
+        return reset_otp
 
 
 class PasswordResetVerifySerializer(serializers.Serializer):
     school_email = serializers.EmailField()
-    otp = serializers.CharField(max_length=6)
+
+    otp = serializers.CharField(
+        min_length=6,
+        max_length=6,
+    )
 
     def validate(self, attrs):
-        school_email = attrs.get("school_email")
-        otp = attrs.get("otp")
+        school_email = (
+            attrs["school_email"]
+            .lower()
+            .strip()
+        )
+
+        otp = attrs["otp"].strip()
 
         try:
-            user = CustomUser.objects.get(school_email=school_email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError({"school_email": "No account found with this email"})
+            user = User.objects.get(
+                school_email__iexact=school_email
+            )
+        except User.DoesNotExist:
+            raise serializers.ValidationError({
+                "school_email": (
+                    "No account exists with this email address."
+                )
+            })
 
         try:
-            otp_instance = PasswordResetOTP.objects.get(user=user, otp=otp)
+            reset_otp = PasswordResetOTP.objects.get(
+                user=user,
+                otp=otp,
+                is_used=False,
+            )
         except PasswordResetOTP.DoesNotExist:
-            raise serializers.ValidationError({"otp": "Invalid OTP"})
+            raise serializers.ValidationError({
+                "otp": "Invalid OTP."
+            })
 
-        if not otp_instance.is_valid():
-            raise serializers.ValidationError({"otp": "OTP has expired or already been used"})
+        if not reset_otp.is_valid():
+            raise serializers.ValidationError({
+                "otp": "This OTP has expired or has already been used."
+            })
 
         attrs["user"] = user
-        attrs["otp_instance"] = otp_instance
+        attrs["reset_otp"] = reset_otp
+
         return attrs
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     school_email = serializers.EmailField()
-    otp = serializers.CharField(max_length=6)
-    new_password = serializers.CharField(min_length=8)
-    confirm_password = serializers.CharField(min_length=8)
+
+    otp = serializers.CharField(
+        min_length=6,
+        max_length=6,
+    )
+
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
+
+    confirm_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+    )
 
     def validate(self, attrs):
-        school_email = attrs.get("school_email")
-        otp = attrs.get("otp")
-        new_password = attrs.get("new_password")
-        confirm_password = attrs.get("confirm_password")
+        school_email = (
+            attrs["school_email"]
+            .lower()
+            .strip()
+        )
 
-        if new_password != confirm_password:
-            raise serializers.ValidationError({"confirm_password": "Passwords do not match"})
-
-        try:
-            user = CustomUser.objects.get(school_email=school_email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError({"school_email": "No account found with this email"})
+        otp = attrs["otp"].strip()
 
         try:
-            otp_instance = PasswordResetOTP.objects.get(user=user, otp=otp)
+            user = User.objects.get(
+                school_email__iexact=school_email
+            )
+        except User.DoesNotExist:
+            raise serializers.ValidationError({
+                "school_email": (
+                    "No account exists with this email address."
+                )
+            })
+
+        try:
+            reset_otp = PasswordResetOTP.objects.get(
+                user=user,
+                otp=otp,
+                is_used=False,
+            )
         except PasswordResetOTP.DoesNotExist:
-            raise serializers.ValidationError({"otp": "Invalid OTP"})
+            raise serializers.ValidationError({
+                "otp": "Invalid OTP."
+            })
 
-        if not otp_instance.is_valid():
-            raise serializers.ValidationError({"otp": "OTP has expired or already been used"})
+        if not reset_otp.is_valid():
+            raise serializers.ValidationError({
+                "otp": (
+                    "This OTP has expired or "
+                    "has already been used."
+                )
+            })
+
+        if (
+            attrs["new_password"]
+            != attrs["confirm_password"]
+        ):
+            raise serializers.ValidationError({
+                "confirm_password": (
+                    "Passwords do not match."
+                )
+            })
+
+        if user.check_password(
+            attrs["new_password"]
+        ):
+            raise serializers.ValidationError({
+                "new_password": (
+                    "New password must be different "
+                    "from your current password."
+                )
+            })
 
         attrs["user"] = user
-        attrs["otp_instance"] = otp_instance
+        attrs["reset_otp"] = reset_otp
+
         return attrs
 
-    def save(self):
+    def save(self, **kwargs):
         user = self.validated_data["user"]
-        otp_instance = self.validated_data["otp_instance"]
+        reset_otp = self.validated_data["reset_otp"]
         new_password = self.validated_data["new_password"]
 
         user.set_password(new_password)
+
+        # If the user was using a temporary password,
+        # successfully resetting the password also means
+        # they no longer need to change it.
         user.must_change_password = False
-        user.save()
 
-        otp_instance.is_used = True
-        otp_instance.save()
+        user.save(
+            update_fields=[
+                "password",
+                "must_change_password",
+            ]
+        )
 
-        from notifications.services.notification_service import NotificationService
-        NotificationService.password_reset(user)
+        reset_otp.is_used = True
 
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
+        reset_otp.save(
+            update_fields=[
+                "is_used",
+            ]
+        )
 
-    def validate(self, attrs):
-        self.token = attrs.get("refresh")
-        return attrs
-
-    def save(self, user):
-        # check if user is a student
-        if hasattr(user, "student_profile"):
-            student = user.student_profile
-
-            # get all course offerings the student is enrolled in
-            enrolled_offerings = course_enrollment.filter(
-                student=student
-            ).values_list("course_offering", flat=True)
-
-            # check if any of those offerings have an active session
-            active_session = session.filter(
-                course_offering__in=enrolled_offerings,
-                active=True
-            ).exists()
-
-            if active_session:
-                raise serializers.ValidationError(
-                    "You cannot logout while a session is active for your enrolled course. "
-                    "Please wait until the session ends."
-                )
-
-        # no active session — proceed with blacklisting
-        try:
-            token = RefreshToken(self.token)
-            token.blacklist()
-        except TokenError:
-            raise serializers.ValidationError({"refresh": "Token is invalid or already blacklisted"})
-
-
+        return user

@@ -147,7 +147,12 @@ class Student(models.Model):
 
 
 class Lecturer(models.Model):
-    employee_id = models.CharField(_("Employee ID"), max_length=50, primary_key=True)
+    employee_id = models.CharField(
+        _("Employee ID"),
+        max_length=50,
+        primary_key=True,
+    )
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         verbose_name=_("User"),
@@ -159,8 +164,14 @@ class Lecturer(models.Model):
         verbose_name = _("Lecturer")
         verbose_name_plural = _("Lecturers")
 
+    def get_full_name(self) -> str:
+        return self.user.get_full_name()
+
+    def get_short_name(self) -> str:
+        return self.user.get_short_name()
+
     def __str__(self) -> str:
-        return f"{self.user.get_full_name()} ({self.employee_id})"
+        return f"{self.get_full_name()} ({self.employee_id})"
 
 
 class Staff(models.Model):
