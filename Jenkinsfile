@@ -12,7 +12,6 @@ pipeline {
 
         VPS_SSH_CREDENTIALS = 'contabo-ssh'
         VPS_HOST = '169.58.142.4'
-        VPS_USER = 'leslie-cheghe'
         VPS_DEPLOY_DIR = '/opt/ams-backend'
 
         DJANGO_SETTINGS_MODULE = 'umsproj.settings.production'
@@ -157,15 +156,30 @@ pipeline {
                             -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
                             "$SSH_USERNAME@$VPS_HOST" \
-                            "cd '$VPS_DEPLOY_DIR' && bash -s" <<REMOTE_SCRIPT
+                            bash -s -- \
+                            "$IMAGE_TAG" \
+                            "$DOCKER_IMAGE" \
+                            "$VPS_DEPLOY_DIR" <<'REMOTE_SCRIPT'
 
 set -e
 
+IMAGE_TAG="$1"
+DOCKER_IMAGE="$2"
+VPS_DEPLOY_DIR="$3"
+
 echo "----------------------------------------"
-echo "Checking AMS deployment files"
+echo "AMS remote deployment"
 echo "----------------------------------------"
 
+echo "Image: $DOCKER_IMAGE"
+echo "Version: $IMAGE_TAG"
+echo "Directory: $VPS_DEPLOY_DIR"
+
 cd "$VPS_DEPLOY_DIR"
+
+echo "----------------------------------------"
+echo "Checking deployment files"
+echo "----------------------------------------"
 
 if [ ! -f docker-compose.prod.yml ]; then
     echo "ERROR: docker-compose.prod.yml not found."
@@ -179,7 +193,7 @@ fi
 
 if [ ! -f .env ]; then
     echo "ERROR: .env not found."
-    echo "DOCKER_HUB_USERNAME must be defined in /opt/ams-backend/.env"
+    echo "Expected: /opt/ams-backend/.env"
     exit 1
 fi
 
@@ -193,12 +207,12 @@ set -a
 . ./.env
 set +a
 
-if [ -z "\${DOCKER_HUB_USERNAME:-}" ]; then
-    echo "ERROR: DOCKER_HUB_USERNAME is not defined."
+if [ -z "${DOCKER_HUB_USERNAME:-}" ]; then
+    echo "ERROR: DOCKER_HUB_USERNAME is not defined in .env."
     exit 1
 fi
 
-echo "Docker Hub username: \$DOCKER_HUB_USERNAME"
+echo "Docker Hub username: $DOCKER_HUB_USERNAME"
 
 echo "----------------------------------------"
 echo "Validating Docker Compose configuration"
@@ -274,7 +288,7 @@ echo "----------------------------------------"
 docker image prune -f
 
 echo "----------------------------------------"
-echo "AMS deployment completed"
+echo "AMS deployment completed successfully"
 echo "----------------------------------------"
 
 REMOTE_SCRIPT
@@ -308,13 +322,46 @@ REMOTE_SCRIPT
                             -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
                             "$SSH_USERNAME@$VPS_HOST" \
-                            "cd '$VPS_DEPLOY_DIR' && \
-                             docker compose \
-                             -f docker-compose.prod.yml \
-                             --env-file .env.prod \
-                             ps"
+                            bash -s -- "$VPS_DEPLOY_DIR" <<'REMOTE_VERIFY'
 
-                        echo "Container verification completed."
+set -e
+
+VPS_DEPLOY_DIR="$1"
+
+cd "$VPS_DEPLOY_DIR"
+
+echo "----------------------------------------"
+echo "AMS container status"
+echo "----------------------------------------"
+
+docker compose \
+    -f docker-compose.prod.yml \
+    --env-file .env.prod \
+    ps
+
+echo "----------------------------------------"
+echo "Checking AMS web container"
+echo "----------------------------------------"
+
+if docker compose \
+    -f docker-compose.prod.yml \
+    --env-file .env.prod \
+    ps --status running web | grep -q web; then
+
+    echo "AMS web container is running."
+
+else
+
+    echo "ERROR: AMS web container is not running."
+    exit 1
+
+fi
+
+echo "----------------------------------------"
+echo "Deployment verification successful"
+echo "----------------------------------------"
+
+REMOTE_VERIFY
                     '''
                 }
             }
