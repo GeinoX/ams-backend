@@ -7,19 +7,8 @@ pipeline {
     }
 
     environment {
-        DOCKER_IMAGE = 'les190/ams-backend'
+        DOCKER_IMAGE = 'les190/ams_backend'
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-
-        // Jenkins credential containing the production environment file.
-        DJANGO_ENV_FILE = credentials('ams-backend-env')
-
-        DJANGO_SETTINGS_MODULE = 'umsproj.settings.production'
-
-        // Jenkins SSH credential for the Ubuntu VPS.
-        VPS_SSH_CREDENTIALS = 'ams-vps-ssh'
-
-        // Remote deployment directory on the VPS.
-        VPS_DEPLOY_DIR = '/opt/ams-backend'
     }
 
     stages {
@@ -38,41 +27,8 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    echo "Backend version: ${env.IMAGE_TAG}"
+                    echo "AMS version: ${env.IMAGE_TAG}"
                 }
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                    python3 -m venv .venv
-
-                    . .venv/bin/activate
-
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
-            }
-        }
-
-        stage('Prepare Environment') {
-            steps {
-                sh '''
-                    cp "$DJANGO_ENV_FILE" .env
-                    chmod 600 .env
-                '''
-            }
-        }
-
-        stage('Django Checks') {
-            steps {
-                sh '''
-                    . .venv/bin/activate
-
-                    python manage.py check \
-                        --settings="$DJANGO_SETTINGS_MODULE"
-                '''
             }
         }
 
@@ -103,71 +59,31 @@ pipeline {
             }
         }
 
-        stage('Deploy to VPS') {
+        stage('Trigger Production Deployment') {
             when {
                 branch 'main'
             }
 
             steps {
-                sshagent(credentials: ["${VPS_SSH_CREDENTIALS}"]) {
-
-                    sh '''
-                        set -e
-
-                        ssh -o StrictHostKeyChecking=no \
-                            "$VPS_USER@$VPS_HOST" \
-                            "cd '$VPS_DEPLOY_DIR' && \
-                             docker compose pull web celery celery-beat && \
-                             docker compose run --rm web \
-                                python manage.py migrate \
-                                --settings='$DJANGO_SETTINGS_MODULE' && \
-                             docker compose run --rm web \
-                                python manage.py collectstatic --noinput \
-                                --settings='$DJANGO_SETTINGS_MODULE' && \
-                             docker compose up -d \
-                                web celery celery-beat"
-                    '''
-                }
-            }
-        }
-
-        stage('Deployment Health Check') {
-            when {
-                branch 'main'
-            }
-
-            steps {
-                sshagent(credentials: ["${VPS_SSH_CREDENTIALS}"]) {
-
-                    sh '''
-                        set -e
-
-                        ssh -o StrictHostKeyChecking=no \
-                            "$VPS_USER@$VPS_HOST" \
-                            "cd '$VPS_DEPLOY_DIR' && \
-                             docker compose ps web celery celery-beat"
-                    '''
-                }
+                build job: 'AMS/ams-devops/main',
+                    wait: false,
+                    parameters: [
+                        string(
+                            name: 'BACKEND_VERSION',
+                            value: "${env.IMAGE_TAG}"
+                        )
+                    ]
             }
         }
     }
 
     post {
-
-        always {
-            sh 'rm -f .env || true'
-            sh 'rm -rf .venv || true'
-        }
-
         success {
-            echo "AMS Backend CI/CD completed successfully."
-            echo "Version deployed: ${env.IMAGE_TAG}"
+            echo "AMS backend CI completed successfully."
         }
 
         failure {
-            echo "AMS Backend CI/CD failed."
-            echo "Check the Jenkins console output for details."
+            echo "AMS backend CI failed."
         }
     }
 }
-
