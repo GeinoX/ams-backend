@@ -131,7 +131,14 @@ pipeline {
 
         stage('Deploy to VPS') {
             steps {
-                sshagent(credentials: [VPS_SSH_CREDENTIALS]) {
+
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: "${VPS_SSH_CREDENTIALS}",
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USERNAME'
+                    )
+                ]) {
 
                     sh '''
                         set -e
@@ -143,10 +150,13 @@ pipeline {
                         echo "Version: $IMAGE_TAG"
                         echo "========================================"
 
+                        chmod 600 "$SSH_KEY"
+
                         ssh \
+                            -i "$SSH_KEY" \
                             -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
-                            "$VPS_USER@$VPS_HOST" \
+                            "$SSH_USERNAME@$VPS_HOST" \
                             "cd '$VPS_DEPLOY_DIR' && bash -s" <<REMOTE_SCRIPT
 
 set -e
@@ -275,7 +285,14 @@ REMOTE_SCRIPT
 
         stage('Verify Deployment') {
             steps {
-                sshagent(credentials: [VPS_SSH_CREDENTIALS]) {
+
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: "${VPS_SSH_CREDENTIALS}",
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USERNAME'
+                    )
+                ]) {
 
                     sh '''
                         set -e
@@ -284,10 +301,13 @@ REMOTE_SCRIPT
                         echo "Verifying AMS deployment"
                         echo "========================================"
 
+                        chmod 600 "$SSH_KEY"
+
                         ssh \
+                            -i "$SSH_KEY" \
                             -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
-                            "$VPS_USER@$VPS_HOST" \
+                            "$SSH_USERNAME@$VPS_HOST" \
                             "cd '$VPS_DEPLOY_DIR' && \
                              docker compose \
                              -f docker-compose.prod.yml \
@@ -324,4 +344,3 @@ REMOTE_SCRIPT
         }
     }
 }
-
