@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -72,8 +73,14 @@ pipeline {
 
                     echo "========================================"
                     echo "Running Django system checks"
-                    echo "Settings: $DJANGO_SETTINGS_MODULE"
                     echo "========================================"
+
+                    cd ams-proj
+
+                    echo "Working directory:"
+                    pwd
+
+                    echo "Settings: $DJANGO_SETTINGS_MODULE"
 
                     python3 -m venv .venv
                     . .venv/bin/activate
@@ -298,7 +305,7 @@ REMOTE_SCRIPT
     post {
 
         always {
-            sh 'rm -rf .venv || true'
+            sh 'rm -rf ams-proj/.venv || true'
         }
 
         success {
@@ -318,3 +325,4 @@ REMOTE_SCRIPT
         }
     }
 }
+```
