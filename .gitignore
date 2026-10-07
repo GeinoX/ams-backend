@@ -6,6 +6,8 @@
 venv/
 .venv/
 env/
+ams-proj/.env.development
+ams-proj/.env.production
 
 # Python cache
 __pycache__/
