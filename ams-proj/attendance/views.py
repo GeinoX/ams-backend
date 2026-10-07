@@ -79,27 +79,98 @@ class AttendanceStudentInfoView(APIView):
             "total_missed": total_missed,
             "attendances": serializer.data
         })
+
+    
 class AttendanceLecturerInfoView(APIView):
 
     permission_classes = [IsAuthenticated, IsLecturer]
 
-    def get(selfm, request, course_offering):
-        lecturer = request.user.lecturer_profile
+    def get(self, request, course_offering):
 
-        sessions = session.filter(session__course_offering=course_offering)
-        enrolled_students = enrollment.filter(course_offering_id=course_offering)
-        attendance = Attendance.objects.filter(session__course_offering= course_offering)
+        # Get all sessions for this course
+        sessions = session.filter(
+            course_offering=course_offering
+        ).order_by("-start_time")
+
+        # Get all students enrolled in this course
+        enrolled_students = enrollment.filter(
+            course_offering_id=course_offering
+        ).select_related(
+            "student__user"
+        )
 
         total_sessions = sessions.count()
         total_enrolled_students = enrolled_students.count()
 
-        serializer = AttendanceLecturerInfoSerializer(attendance, many=True)
+        session_data = []
+
+        for current_session in sessions:
+
+            # Get attendance records for this session
+            attendance_records = Attendance.objects.filter(
+                session=current_session
+            ).select_related(
+                "student__user"
+            )
+
+            # Create a lookup using the student's matricule
+            attendance_map = {
+                attendance.student.matricule: attendance
+                for attendance in attendance_records
+                if attendance.student
+            }
+
+            students_data = []
+
+            # Check every enrolled student
+            for enrolled in enrolled_students:
+
+                student = enrolled.student
+
+                attendance = attendance_map.get(
+                    student.matricule
+                )
+
+                # If an attendance record exists, use its status.
+                # If no record exists, the student is considered absent.
+                student_status = (
+                    attendance.status
+                    if attendance
+                    else Attendance.AttendanceChoices.ABSENT
+                )
+
+                students_data.append({
+                    "name": student.user.get_full_name(),
+                    "matricule": student.matricule,
+                    "status": student_status,
+                })
+
+            # Count present students
+            total_present = sum(
+                student["status"]
+                == Attendance.AttendanceChoices.PRESENT
+                for student in students_data
+            )
+
+            # Count absent students
+            total_absent = sum(
+                student["status"]
+                == Attendance.AttendanceChoices.ABSENT
+                for student in students_data
+            )
+
+            session_data.append({
+                "session_id": current_session.session_id,
+                "date": current_session.start_time.date(),
+                "month": current_session.start_time.month,
+                "year": current_session.start_time.year,
+                "total_present": total_present,
+                "total_absent": total_absent,
+                "students": students_data,
+            })
 
         return Response({
-            "total_session": total_sessions,
+            "total_sessions": total_sessions,
             "total_enrolled_students": total_enrolled_students,
-            "attendances": serializer.data
+            "sessions": session_data,
         })
-
-
-        

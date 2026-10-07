@@ -1,19 +1,29 @@
 from rest_framework import serializers
 from .models import Session
+from courses.models import CourseAssignment
 
-
-class CreateSessionSerializer(serializers.Serializer):
+class CreateSessionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Session
-        field = ["id", "course_offering"]
+        fields = ["session_id", "course_offering"]
+        read_only_fields = ["session_id"]
 
+    def validate_course_offering(self, offering):
+        lecturer = self.context["request"].user.lecturer_profile
 
-    def validate_id(self, value: str) -> str:
-        if Session.objects.filter(id=value).exists():
-            return serializers.ValidationError("This session already exists")
-        return value
-    
-    def create(self, validated_data):
-        return Session.objects.create(**validated_data)
-    
+        # Adjust CourseAssignment and its field names to your project
+        if not CourseAssignment.objects.filter(
+            lecturer=lecturer,
+            course_offering=offering,
+        ).exists():
+            raise serializers.ValidationError(
+                "You are not assigned to this course offering."
+            )
+
+        if Session.objects.filter(course_offering=offering, active=True).exists():
+            raise serializers.ValidationError(
+                "A session is already active for this course offering."
+            )
+
+        return offering

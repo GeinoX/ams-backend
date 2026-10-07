@@ -11,3 +11,4 @@ sudo service redis-server start
 redis-server 
 # or
 sudo systemctl start redis
+ptgz oprp eoqa xnky

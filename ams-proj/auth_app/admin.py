@@ -189,67 +189,83 @@ class StudentAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-# ------- Lecturer -------
+## ------- Lecturer -------
 @admin.register(Lecturer)
 class LecturerAdmin(admin.ModelAdmin):
     list_display = [
-        "employee_id", "get_full_name",
-        "get_school_email", "get_faculty"
+        "employee_id",
+        "get_full_name",
+        "get_school_email",
+        "get_faculty",
     ]
+
     search_fields = [
-        "employee_id", "user__first_name",
-        "user__last_name", "user__school_email"
+        "employee_id",
+        "user__first_name",
+        "user__last_name",
+        "user__school_email",
     ]
+
     ordering = ["employee_id"]
+
     readonly_fields = [
-        "employee_id", "get_full_name",
-        "get_school_email", "get_faculty",
-        "profile_image_preview"
+        "get_full_name",
+        "get_school_email",
+        "get_faculty",
+        "profile_image_preview",
     ]
 
     fieldsets = (
         (_("Lecturer Info"), {
-            "fields": ("employee_id",)
+            "fields": (
+                "employee_id",
+                "user",
+            )
         }),
         (_("User Info"), {
             "fields": (
-                "get_full_name", "get_school_email",
-                "get_faculty", "profile_image_preview"
+                "get_full_name",
+                "get_school_email",
+                "get_faculty",
+                "profile_image_preview",
             )
         }),
     )
 
     def get_full_name(self, obj):
         return obj.user.get_full_name()
+
     get_full_name.short_description = "Full Name"
 
     def get_school_email(self, obj):
         return obj.user.school_email
+
     get_school_email.short_description = "School Email"
 
     def get_faculty(self, obj):
         return obj.user.faculty
+
     get_faculty.short_description = "Faculty"
 
     def profile_image_preview(self, obj):
         if obj.user.profile_image:
             return format_html(
-                '<img src="{}" width="80" height="80" style="border-radius: 50%;" />',
-                obj.user.profile_image.url
+                '<img src="{}" width="80" height="80" '
+                'style="border-radius: 50%;" />',
+                obj.user.profile_image.url,
             )
+
         return "No image"
+
     profile_image_preview.short_description = "Profile Image"
 
     def save_model(self, request, obj, form, change):
-        if not change:
-            temporary_password = generate_temporary_password()
-            obj.user.set_password(temporary_password)
-            obj.user.must_change_password = True
-            obj.user.save()
-            send_credentials(obj.user, temporary_password)
-        super().save_model(request, obj, form, change)
-
-
+        super().save_model(
+            request,
+            obj,
+            form,
+            change,
+        )
 # ------- Staff -------
 @admin.register(Staff)
 class StaffAdmin(admin.ModelAdmin):

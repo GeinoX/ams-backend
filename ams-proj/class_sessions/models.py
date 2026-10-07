@@ -1,5 +1,6 @@
 from django.db import models
 import uuid
+from auditlog.registry import auditlog
 
 
 # Create your models here.
@@ -18,3 +19,5 @@ class Session(models.Model):
     def __str__(self):
         return f"{self.course_offering.course.name} - Session {self.session_id}"
 
+
+auditlog.register(Session)

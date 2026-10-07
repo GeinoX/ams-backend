@@ -14,8 +14,6 @@ from notifications.services.inapp_service import (
 def test_task():
     print("Hello from Celery!")
 
-    from celery import shared_task
-
 @shared_task
 def send_push_notification(
     notification_id
