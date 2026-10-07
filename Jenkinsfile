@@ -32,14 +32,39 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
-            when {
-                branch 'main'
-            }
+        stage('Verify Branch') {
+            steps {
+                script {
+                    def branch = sh(
+                        script: 'git branch --show-current',
+                        returnStdout: true
+                    ).trim()
 
+                    def commit = sh(
+                        script: 'git rev-parse HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Git branch: ${branch}"
+                    echo "Git commit: ${commit}"
+                    echo "Jenkins BRANCH_NAME: ${env.BRANCH_NAME ?: '(not set)'}"
+                    echo "Jenkins GIT_BRANCH: ${env.GIT_BRANCH ?: '(not set)'}"
+
+                    if (env.GIT_BRANCH != null && env.GIT_BRANCH != 'origin/main' && env.GIT_BRANCH != 'main') {
+                        error("This pipeline is not running from main. GIT_BRANCH=${env.GIT_BRANCH}")
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {
             steps {
                 sh '''
                     set -e
+
+                    echo "Building AMS production image..."
+                    echo "Image: $DOCKER_IMAGE"
+                    echo "Version: $IMAGE_TAG"
 
                     echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login \
                         -u "$DOCKERHUB_CREDENTIALS_USR" \
@@ -60,19 +85,20 @@ pipeline {
         }
 
         stage('Trigger Production Deployment') {
-            when {
-                branch 'main'
-            }
-
             steps {
-                build job: 'AMS/ams-devops/main',
-                    wait: false,
-                    parameters: [
-                        string(
-                            name: 'BACKEND_VERSION',
-                            value: "${env.IMAGE_TAG}"
-                        )
-                    ]
+                script {
+                    /*
+                     * Deployment will be handled by the AMS DevOps Jenkins job.
+                     *
+                     * We are not creating the DevOps job yet.
+                     * For this run, this stage only confirms that the
+                     * Docker image was successfully built and pushed.
+                     */
+
+                    echo "Docker image pushed successfully."
+                    echo "Deployment stage will be connected after AMS DevOps is configured."
+                    echo "Version ready for deployment: ${env.IMAGE_TAG}"
+                }
             }
         }
     }
@@ -80,6 +106,7 @@ pipeline {
     post {
         success {
             echo "AMS backend CI completed successfully."
+            echo "Built version: ${env.IMAGE_TAG}"
         }
 
         failure {
@@ -87,3 +114,4 @@ pipeline {
         }
     }
 }
+
