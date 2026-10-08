@@ -8,13 +8,16 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'les190/ams_backend'
+
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+
+        DJANGO_ENV_FILE = credentials('ams-backend-env')
+
+        DJANGO_SETTINGS_MODULE = 'umsproj.settings.production'
 
         VPS_SSH_CREDENTIALS = 'contabo-ssh'
         VPS_HOST = '169.58.142.4'
         VPS_DEPLOY_DIR = '/opt/ams-backend'
-
-        DJANGO_SETTINGS_MODULE = 'umsproj.settings.production'
     }
 
     stages {
@@ -33,78 +36,54 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    echo "AMS version: ${env.IMAGE_TAG}"
+                    echo "AMS backend version: ${env.IMAGE_TAG}"
                 }
             }
         }
 
-        stage('Verify Main Branch') {
+        stage('Install Dependencies') {
             steps {
-                script {
-                    def commit = sh(
-                        script: 'git rev-parse HEAD',
-                        returnStdout: true
-                    ).trim()
+                sh '''
+                    python3 -m venv .venv
 
-                    echo "Git commit: ${commit}"
-                    echo "Jenkins BRANCH_NAME: ${env.BRANCH_NAME ?: '(not set)'}"
-                    echo "Jenkins GIT_BRANCH: ${env.GIT_BRANCH ?: '(not set)'}"
+                    . .venv/bin/activate
 
-                    if (
-                        env.GIT_BRANCH != null &&
-                        env.GIT_BRANCH != 'origin/main' &&
-                        env.GIT_BRANCH != 'main'
-                    ) {
-                        error(
-                            "Deployment pipeline must run from main. " +
-                            "GIT_BRANCH=${env.GIT_BRANCH}"
-                        )
-                    }
-                }
+                    pip install --upgrade pip
+
+                    pip install -r ams-proj/requirements.txt
+                '''
+            }
+        }
+
+        stage('Prepare Environment') {
+            steps {
+                sh '''
+                    cp "$DJANGO_ENV_FILE" ams-proj/.env
+
+                    chmod 600 ams-proj/.env
+                '''
             }
         }
 
         stage('Django Checks') {
             steps {
                 sh '''
-                    set -e
-
-                    echo "========================================"
-                    echo "Running Django system checks"
-                    echo "========================================"
+                    . .venv/bin/activate
 
                     cd ams-proj
 
-                    echo "Working directory:"
-                    pwd
-
-                    echo "Settings: $DJANGO_SETTINGS_MODULE"
-
-                    python3 -m venv .venv
-                    . .venv/bin/activate
-
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-
-                    DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
                     python manage.py check
-
-                    deactivate
                 '''
             }
         }
 
         stage('Docker Build & Push') {
+            when {
+                branch 'main'
+            }
+
             steps {
                 sh '''
-                    set -e
-
-                    echo "========================================"
-                    echo "Building AMS production image"
-                    echo "Image: $DOCKER_IMAGE"
-                    echo "Version: $IMAGE_TAG"
-                    echo "========================================"
-
                     echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login \
                         -u "$DOCKERHUB_CREDENTIALS_USR" \
                         --password-stdin
@@ -115,22 +94,21 @@ pipeline {
                         -t "$DOCKER_IMAGE:production" \
                         .
 
-                    echo "Pushing version tag..."
                     docker push "$DOCKER_IMAGE:$IMAGE_TAG"
 
-                    echo "Pushing production tag..."
                     docker push "$DOCKER_IMAGE:production"
 
                     docker logout
-
-                    echo "Docker image successfully pushed."
                 '''
             }
         }
 
         stage('Deploy to VPS') {
-            steps {
+            when {
+                branch 'main'
+            }
 
+            steps {
                 withCredentials([
                     sshUserPrivateKey(
                         credentialsId: "${VPS_SSH_CREDENTIALS}",
@@ -140,17 +118,6 @@ pipeline {
                 ]) {
 
                     sh '''
-                        set -e
-
-                        echo "========================================"
-                        echo "Deploying AMS to VPS"
-                        echo "Host: $VPS_HOST"
-                        echo "Directory: $VPS_DEPLOY_DIR"
-                        echo "Version: $IMAGE_TAG"
-                        echo "========================================"
-
-                        chmod 600 "$SSH_KEY"
-
                         ssh \
                             -i "$SSH_KEY" \
                             -o StrictHostKeyChecking=no \
@@ -161,135 +128,192 @@ pipeline {
                             "$DOCKER_IMAGE" \
                             "$VPS_DEPLOY_DIR" <<'REMOTE_SCRIPT'
 
-set -e
-
 IMAGE_TAG="$1"
 DOCKER_IMAGE="$2"
 VPS_DEPLOY_DIR="$3"
 
-echo "----------------------------------------"
-echo "AMS remote deployment"
-echo "----------------------------------------"
+set -e
 
-echo "Image: $DOCKER_IMAGE"
-echo "Version: $IMAGE_TAG"
-echo "Directory: $VPS_DEPLOY_DIR"
+echo "=========================================="
+echo "AMS PRODUCTION DEPLOYMENT"
+echo "=========================================="
+
+echo "Image tag: $IMAGE_TAG"
+echo "Docker image: $DOCKER_IMAGE"
+echo "Deployment directory: $VPS_DEPLOY_DIR"
 
 cd "$VPS_DEPLOY_DIR"
 
-echo "----------------------------------------"
-echo "Checking deployment files"
-echo "----------------------------------------"
-
-if [ ! -f docker-compose.prod.yml ]; then
-    echo "ERROR: docker-compose.prod.yml not found."
-    exit 1
-fi
-
-if [ ! -f .env.prod ]; then
-    echo "ERROR: .env.prod not found."
-    exit 1
-fi
+echo ""
+echo "Loading deployment environment..."
 
 if [ ! -f .env ]; then
-    echo "ERROR: .env not found."
-    echo "Expected: /opt/ams-backend/.env"
+    echo "ERROR: .env file not found."
     exit 1
 fi
-
-echo "Deployment files found."
-
-echo "----------------------------------------"
-echo "Loading Docker Hub configuration"
-echo "----------------------------------------"
 
 set -a
 . ./.env
 set +a
 
-if [ -z "${DOCKER_HUB_USERNAME:-}" ]; then
-    echo "ERROR: DOCKER_HUB_USERNAME is not defined in .env."
+echo "Docker Hub username: $DOCKER_HUB_USERNAME"
+
+if [ -z "$DOCKER_HUB_USERNAME" ]; then
+    echo "ERROR: DOCKER_HUB_USERNAME is not set."
     exit 1
 fi
 
-echo "Docker Hub username: $DOCKER_HUB_USERNAME"
-
-echo "----------------------------------------"
-echo "Validating Docker Compose configuration"
-echo "----------------------------------------"
+echo ""
+echo "Checking Docker Compose configuration..."
 
 docker compose \
     -f docker-compose.prod.yml \
-    --env-file .env.prod \
-    config > /dev/null
+    --env-file .env \
+    config -q
 
 echo "Compose configuration is valid."
 
-echo "----------------------------------------"
-echo "Starting PostgreSQL and Redis"
-echo "----------------------------------------"
+echo ""
+echo "Pulling AMS application image..."
+
+docker pull "$DOCKER_IMAGE:production"
+
+echo ""
+echo "Starting PostgreSQL and Redis..."
 
 docker compose \
     -f docker-compose.prod.yml \
-    --env-file .env.prod \
+    --env-file .env \
     up -d db redis
 
-echo "----------------------------------------"
-echo "Pulling latest AMS application images"
-echo "----------------------------------------"
+echo ""
+echo "Waiting for PostgreSQL to become healthy..."
+
+DB_READY=0
+
+for i in \$(seq 1 30); do
+
+    DB_STATUS=\$(docker inspect \
+        --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
+        ams-backend-db-1 2>/dev/null || true)
+
+    echo "PostgreSQL status: \$DB_STATUS"
+
+    if [ "\$DB_STATUS" = "healthy" ]; then
+        DB_READY=1
+        break
+    fi
+
+    sleep 2
+
+done
+
+if [ "\$DB_READY" -ne 1 ]; then
+
+    echo ""
+    echo "ERROR: PostgreSQL did not become healthy."
+
+    echo ""
+    echo "PostgreSQL container status:"
+    docker ps -a --filter name=ams-backend-db-1
+
+    echo ""
+    echo "PostgreSQL logs:"
+    docker logs --tail 100 ams-backend-db-1
+
+    exit 1
+fi
+
+echo ""
+echo "PostgreSQL is healthy."
+
+echo ""
+echo "Waiting for Redis to become healthy..."
+
+REDIS_READY=0
+
+for i in \$(seq 1 30); do
+
+    REDIS_STATUS=\$(docker inspect \
+        --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
+        ams-backend-redis-1 2>/dev/null || true)
+
+    echo "Redis status: \$REDIS_STATUS"
+
+    if [ "\$REDIS_STATUS" = "healthy" ]; then
+        REDIS_READY=1
+        break
+    fi
+
+    sleep 2
+
+done
+
+if [ "\$REDIS_READY" -ne 1 ]; then
+
+    echo ""
+    echo "ERROR: Redis did not become healthy."
+
+    echo ""
+    echo "Redis container status:"
+    docker ps -a --filter name=ams-backend-redis-1
+
+    echo ""
+    echo "Redis logs:"
+    docker logs --tail 100 ams-backend-redis-1
+
+    exit 1
+fi
+
+echo ""
+echo "Redis is healthy."
+
+echo ""
+echo "Running database migrations..."
 
 docker compose \
     -f docker-compose.prod.yml \
-    --env-file .env.prod \
-    pull web celery celery-beat
-
-echo "----------------------------------------"
-echo "Running database migrations"
-echo "----------------------------------------"
-
-docker compose \
-    -f docker-compose.prod.yml \
-    --env-file .env.prod \
+    --env-file .env \
     run --rm web \
     python manage.py migrate --noinput
 
-echo "----------------------------------------"
-echo "Collecting static files"
-echo "----------------------------------------"
+echo ""
+echo "Collecting static files..."
 
 docker compose \
     -f docker-compose.prod.yml \
-    --env-file .env.prod \
+    --env-file .env \
     run --rm web \
     python manage.py collectstatic --noinput
 
-echo "----------------------------------------"
-echo "Starting AMS application"
-echo "----------------------------------------"
+echo ""
+echo "Starting AMS application services..."
 
 docker compose \
     -f docker-compose.prod.yml \
-    --env-file .env.prod \
-    up -d web celery celery-beat
+    --env-file .env \
+    up -d \
+    web \
+    celery \
+    celery-beat
 
-echo "----------------------------------------"
-echo "Current AMS containers"
-echo "----------------------------------------"
-
-docker compose \
-    -f docker-compose.prod.yml \
-    --env-file .env.prod \
-    ps
-
-echo "----------------------------------------"
-echo "Cleaning unused Docker images"
-echo "----------------------------------------"
+echo ""
+echo "Cleaning unused Docker images..."
 
 docker image prune -f
 
-echo "----------------------------------------"
-echo "AMS deployment completed successfully"
-echo "----------------------------------------"
+echo ""
+echo "=========================================="
+echo "AMS DEPLOYMENT COMPLETED"
+echo "=========================================="
+
+echo ""
+echo "Running containers:"
+
+docker compose \
+    -f docker-compose.prod.yml \
+    --env-file .env \
+    ps
 
 REMOTE_SCRIPT
                     '''
@@ -298,8 +322,11 @@ REMOTE_SCRIPT
         }
 
         stage('Verify Deployment') {
-            steps {
+            when {
+                branch 'main'
+            }
 
+            steps {
                 withCredentials([
                     sshUserPrivateKey(
                         credentialsId: "${VPS_SSH_CREDENTIALS}",
@@ -309,57 +336,39 @@ REMOTE_SCRIPT
                 ]) {
 
                     sh '''
-                        set -e
-
-                        echo "========================================"
-                        echo "Verifying AMS deployment"
-                        echo "========================================"
-
-                        chmod 600 "$SSH_KEY"
+                        echo "Checking AMS containers on VPS..."
 
                         ssh \
                             -i "$SSH_KEY" \
                             -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
                             "$SSH_USERNAME@$VPS_HOST" \
-                            bash -s -- "$VPS_DEPLOY_DIR" <<'REMOTE_VERIFY'
-
-set -e
+                            bash -s -- \
+                            "$VPS_DEPLOY_DIR" <<'REMOTE_VERIFY'
 
 VPS_DEPLOY_DIR="$1"
 
+set -e
+
 cd "$VPS_DEPLOY_DIR"
 
-echo "----------------------------------------"
-echo "AMS container status"
-echo "----------------------------------------"
+echo "Container status:"
 
 docker compose \
     -f docker-compose.prod.yml \
-    --env-file .env.prod \
+    --env-file .env \
     ps
 
-echo "----------------------------------------"
-echo "Checking AMS web container"
-echo "----------------------------------------"
+echo ""
+echo "Testing AMS web container..."
 
-if docker compose \
+docker compose \
     -f docker-compose.prod.yml \
-    --env-file .env.prod \
-    ps --status running web | grep -q web; then
+    --env-file .env \
+    ps --status running web
 
-    echo "AMS web container is running."
-
-else
-
-    echo "ERROR: AMS web container is not running."
-    exit 1
-
-fi
-
-echo "----------------------------------------"
-echo "Deployment verification successful"
-echo "----------------------------------------"
+echo ""
+echo "AMS deployment verification completed."
 
 REMOTE_VERIFY
                     '''
@@ -371,23 +380,16 @@ REMOTE_VERIFY
     post {
 
         always {
-            sh 'rm -rf ams-proj/.venv || true'
+            sh 'rm -f ams-proj/.env || true'
+            sh 'rm -rf .venv || true'
         }
 
         success {
-            echo "========================================"
-            echo "AMS DEPLOYMENT SUCCESSFUL"
-            echo "Version: ${env.IMAGE_TAG}"
-            echo "Image: ${env.DOCKER_IMAGE}:${env.IMAGE_TAG}"
-            echo "Production: ${env.DOCKER_IMAGE}:production"
-            echo "========================================"
+            echo "AMS backend CI/CD completed successfully."
         }
 
         failure {
-            echo "========================================"
-            echo "AMS PIPELINE FAILED"
-            echo "Check the failed stage above."
-            echo "========================================"
+            echo "AMS backend CI/CD failed."
         }
     }
 }
