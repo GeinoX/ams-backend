@@ -11,10 +11,6 @@ pipeline {
 
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
 
-        DJANGO_ENV_FILE = credentials('ams-backend-env')
-
-        DJANGO_SETTINGS_MODULE = 'umsproj.settings.production'
-
         VPS_SSH_CREDENTIALS = 'contabo-ssh'
         VPS_HOST = '169.58.142.4'
         VPS_DEPLOY_DIR = '/opt/ams-backend'
@@ -55,16 +51,6 @@ pipeline {
             }
         }
 
-        stage('Prepare Environment') {
-            steps {
-                sh '''
-                    cp "$DJANGO_ENV_FILE" ams-proj/.env
-
-                    chmod 600 ams-proj/.env
-                '''
-            }
-        }
-
         stage('Django Checks') {
             steps {
                 sh '''
@@ -84,6 +70,8 @@ pipeline {
 
             steps {
                 sh '''
+                    set -e
+
                     echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login \
                         -u "$DOCKERHUB_CREDENTIALS_USR" \
                         --password-stdin
@@ -118,6 +106,8 @@ pipeline {
                 ]) {
 
                     sh '''
+                        set -e
+
                         ssh \
                             -i "$SSH_KEY" \
                             -o StrictHostKeyChecking=no \
@@ -145,10 +135,15 @@ echo "Deployment directory: $VPS_DEPLOY_DIR"
 cd "$VPS_DEPLOY_DIR"
 
 echo ""
-echo "Loading deployment environment..."
+echo "Checking deployment environment..."
 
 if [ ! -f .env ]; then
     echo "ERROR: .env file not found."
+    exit 1
+fi
+
+if [ ! -f .env.prod ]; then
+    echo "ERROR: .env.prod file not found."
     exit 1
 fi
 
@@ -156,12 +151,12 @@ set -a
 . ./.env
 set +a
 
-echo "Docker Hub username: $DOCKER_HUB_USERNAME"
-
 if [ -z "$DOCKER_HUB_USERNAME" ]; then
-    echo "ERROR: DOCKER_HUB_USERNAME is not set."
+    echo "ERROR: DOCKER_HUB_USERNAME is not set in .env."
     exit 1
 fi
+
+echo "Docker Hub username: $DOCKER_HUB_USERNAME"
 
 echo ""
 echo "Checking Docker Compose configuration..."
@@ -191,15 +186,15 @@ echo "Waiting for PostgreSQL to become healthy..."
 
 DB_READY=0
 
-for i in \$(seq 1 30); do
+for i in $(seq 1 30); do
 
-    DB_STATUS=\$(docker inspect \
+    DB_STATUS=$(docker inspect \
         --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
         ams-backend-db-1 2>/dev/null || true)
 
-    echo "PostgreSQL status: \$DB_STATUS"
+    echo "PostgreSQL status: $DB_STATUS"
 
-    if [ "\$DB_STATUS" = "healthy" ]; then
+    if [ "$DB_STATUS" = "healthy" ]; then
         DB_READY=1
         break
     fi
@@ -208,17 +203,19 @@ for i in \$(seq 1 30); do
 
 done
 
-if [ "\$DB_READY" -ne 1 ]; then
+if [ "$DB_READY" -ne 1 ]; then
 
     echo ""
     echo "ERROR: PostgreSQL did not become healthy."
 
     echo ""
     echo "PostgreSQL container status:"
+
     docker ps -a --filter name=ams-backend-db-1
 
     echo ""
     echo "PostgreSQL logs:"
+
     docker logs --tail 100 ams-backend-db-1
 
     exit 1
@@ -232,15 +229,15 @@ echo "Waiting for Redis to become healthy..."
 
 REDIS_READY=0
 
-for i in \$(seq 1 30); do
+for i in $(seq 1 30); do
 
-    REDIS_STATUS=\$(docker inspect \
+    REDIS_STATUS=$(docker inspect \
         --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
         ams-backend-redis-1 2>/dev/null || true)
 
-    echo "Redis status: \$REDIS_STATUS"
+    echo "Redis status: $REDIS_STATUS"
 
-    if [ "\$REDIS_STATUS" = "healthy" ]; then
+    if [ "$REDIS_STATUS" = "healthy" ]; then
         REDIS_READY=1
         break
     fi
@@ -249,17 +246,19 @@ for i in \$(seq 1 30); do
 
 done
 
-if [ "\$REDIS_READY" -ne 1 ]; then
+if [ "$REDIS_READY" -ne 1 ]; then
 
     echo ""
     echo "ERROR: Redis did not become healthy."
 
     echo ""
     echo "Redis container status:"
+
     docker ps -a --filter name=ams-backend-redis-1
 
     echo ""
     echo "Redis logs:"
+
     docker logs --tail 100 ams-backend-redis-1
 
     exit 1
@@ -336,6 +335,8 @@ REMOTE_SCRIPT
                 ]) {
 
                     sh '''
+                        set -e
+
                         echo "Checking AMS containers on VPS..."
 
                         ssh \
@@ -360,12 +361,18 @@ docker compose \
     ps
 
 echo ""
-echo "Testing AMS web container..."
+echo "Checking running AMS web container..."
 
-docker compose \
-    -f docker-compose.prod.yml \
-    --env-file .env \
-    ps --status running web
+WEB_STATUS=$(docker inspect \
+    --format='{{.State.Status}}' \
+    ams-backend-web-1 2>/dev/null || true)
+
+if [ "$WEB_STATUS" != "running" ]; then
+    echo "ERROR: AMS web container is not running."
+    exit 1
+fi
+
+echo "AMS web container is running."
 
 echo ""
 echo "AMS deployment verification completed."
@@ -379,17 +386,18 @@ REMOTE_VERIFY
 
     post {
 
-        always {
-            sh 'rm -f ams-proj/.env || true'
-            sh 'rm -rf .venv || true'
-        }
-
         success {
             echo "AMS backend CI/CD completed successfully."
         }
 
         failure {
             echo "AMS backend CI/CD failed."
+        }
+
+        cleanup {
+            sh '''
+                rm -rf .venv || true
+            '''
         }
     }
 }
